@@ -12,8 +12,11 @@
         default = pkgs.mkShell {
           packages = with pkgs;
             [
-              (pkgs.python3.withPackages
-                (python-pkgs: [ python-pkgs.gymnasium python-pkgs.ale-py ]))
+              (pkgs.python3.withPackages (python-pkgs: [
+                python-pkgs.pettingzoo
+                python-pkgs.pygame
+                python-pkgs.pymunk
+              ]))
             ];
         };
       });
