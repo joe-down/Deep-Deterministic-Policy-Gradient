@@ -70,10 +70,8 @@ class Agent:
         self.buffer.push_reward(reward=reward, terminated=terminated)
 
     def train(self) -> None:
-        random_observations = self.buffer.random_observations(number=self.TRAIN_BATCH_SIZE)
-        if random_observations is None:
-            return
-        observation_actions, next_observation_actions, immediate_rewards, terminations = random_observations
+        observation_actions, next_observation_actions, immediate_rewards, terminations \
+            = self.buffer.random_observations(number=self.TRAIN_BATCH_SIZE)
         next_observations = next_observation_actions[:, :-self.ACTION_LENGTH]
         a = next_observations.repeat(self.train_action_space.shape[0], 1, 1)
         b = torch.concatenate((a, self.train_action_space), 2)
@@ -91,6 +89,7 @@ class Agent:
         loss.backward()
         self.optimiser.step()
         self.RANDOM_ACTION_PROBABILITY *= self.RANDOM_ACTION_PROBABILITY_DECAY
+        print(loss)
 
     def save(self) -> None:
         torch.save(self.neural_network.state_dict(), self.SAVE_PATH)
