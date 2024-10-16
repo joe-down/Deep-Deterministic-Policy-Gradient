@@ -36,9 +36,12 @@ class Buffer:
     def buffer_observations_ready(self) -> bool:
         return self.buffer_end >= self.buffer_start + 1
 
+    def filled(self) -> bool:
+        return self.buffer_start == 0
+
     def random_observations(self, number: int) -> tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor]:
         assert self.buffer_observations_ready()
-        indexes = torch.randint(self.buffer_start, self.buffer_end + 1, (number,))
+        indexes = torch.randint(self.buffer_start, self.BUFFER_SIZE if self.filled() else self.buffer_end, (number,))
         return (self.observations[indexes],
                 self.observations[(indexes + 1) % self.BUFFER_SIZE],
                 self.rewards[indexes].unsqueeze(1),
