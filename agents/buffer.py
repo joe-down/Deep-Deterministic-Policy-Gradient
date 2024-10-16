@@ -18,7 +18,6 @@ class Buffer:
     def push_observation(self, observation: torch.tensor) -> None:
         self.observation_index = (self.observation_index + 1) % self.BUFFER_SIZE
         self.observations[self.observation_index] = observation
-        self.buffer_fill = max(self.buffer_fill, min(self.observation_index, self.reward_index))
         self.update_fill()
 
     def push_reward(self, reward: float, terminated: bool) -> None:
