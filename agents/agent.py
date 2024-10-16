@@ -25,7 +25,7 @@ class Buffer:
         self.rewards[self.reward_index] = reward
         self.terminations[self.reward_index] = terminated
 
-    def random_episode(self) -> typing.Optional[tuple[torch.tensor, torch.tensor]]:
+    def random_episode(self) -> typing.Optional[tuple[torch.tensor, torch.tensor, torch.tensor]]:
         episode_boundaries = self.terminations.nonzero() + 1
         episode_count = len(episode_boundaries) - 1
         if episode_count < 1:
@@ -34,28 +34,31 @@ class Buffer:
         episode_boundary = episode_boundaries[episode_number:episode_number + 2]
         assert episode_boundary.shape == (2, 1)
         episode_slice = slice(episode_boundary[0], episode_boundary[1])
-        return self.observations[episode_slice], self.rewards[episode_slice]
+        return self.observations[episode_slice], self.rewards[episode_slice], self.terminations[episode_slice]
 
-    def random_observation(self) -> typing.Optional[tuple[torch.tensor, torch.tensor, torch.tensor]]:
+    def random_observation(self) -> typing.Optional[tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor]]:
         assert self.observation_index == self.reward_index
         random_episode = self.random_episode()
         if random_episode is None:
             return None
-        observations, rewards = random_episode
+        observations, rewards, terminations = random_episode
         assert len(observations) == len(rewards)
-        observation_index = torch.randint(0, len(observations) - 1, (1,))
-        return observations[observation_index], observations[observation_index + 1], rewards[observation_index]
+        observation_index = torch.randint(0, len(observations), (1,))
+        return observations[observation_index], observations[(observation_index + 1) % len(observations)], rewards[
+            observation_index], terminations[observation_index]
 
-    def random_observations(self, number: int) -> typing.Optional[tuple[torch.tensor, torch.tensor, torch.tensor]]:
+    def random_observations(self, number: int) -> typing.Optional[
+        tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor]]:
         observations = torch.zeros((number, 28))
         next_observations = torch.zeros((number, 28))
         rewards = torch.zeros((number, 1))
+        terminations = torch.zeros((number, 1))
         for i in range(number):
             random_observation = self.random_observation()
             if random_observation is None:
                 return None
-            observations[i], next_observations[i], rewards[i] = random_observation
-        return observations, next_observations, rewards
+            observations[i], next_observations[i], rewards[i], terminations[i] = random_observation
+        return observations, next_observations, rewards, terminations
 
 
 class Agent:
@@ -127,7 +130,7 @@ class Agent:
         random_observations = self.buffer.random_observations(number=self.TRAIN_BATCH_SIZE)
         if random_observations is None:
             return
-        observation_actions, next_observation_actions, immediate_rewards = random_observations
+        observation_actions, next_observation_actions, immediate_rewards, terminations = random_observations
         next_observations = next_observation_actions[:, :-self.ACTION_LENGTH]
         a = next_observations.repeat(self.train_action_space.shape[0], 1, 1)
         b = torch.concatenate((a, self.train_action_space), 2)
@@ -138,7 +141,8 @@ class Agent:
         best_next_observation_actions = torch.concatenate((next_observations, best_next_actions), dim=1)
         # Learn
         self.optimiser.zero_grad()
-        target = immediate_rewards + self.DISCOUNT_FACTOR * self.neural_network(best_next_observation_actions)
+        target = immediate_rewards + self.DISCOUNT_FACTOR * (1 - terminations) * self.neural_network(
+            best_next_observation_actions)
         prediction = self.neural_network(observation_actions)
         loss = self.loss_function(target, prediction)
         loss.backward()
