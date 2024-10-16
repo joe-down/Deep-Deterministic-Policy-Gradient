@@ -1,6 +1,6 @@
 import numpy
 import torch
-from buffer import Buffer
+from agents.buffer import Buffer
 
 
 class Agent:
