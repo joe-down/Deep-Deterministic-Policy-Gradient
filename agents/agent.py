@@ -70,6 +70,8 @@ class Agent:
         self.buffer.push_reward(reward=reward, terminated=terminated)
 
     def train(self) -> None:
+        if not self.buffer.buffer_observations_ready():
+            return
         observation_actions, next_observation_actions, immediate_rewards, terminations \
             = self.buffer.random_observations(number=self.TRAIN_BATCH_SIZE)
         next_observations = next_observation_actions[:, :-self.ACTION_LENGTH]
