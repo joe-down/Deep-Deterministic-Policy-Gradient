@@ -5,10 +5,8 @@ import torch
 
 
 class Buffer:
-    BUFFER_SIZE: int = 10000000
+    BUFFER_SIZE: int = 2 ** 24
     assert BUFFER_SIZE > 0
-    REWARD_DECAY: float = 0.9
-    assert 0 < REWARD_DECAY < 1
 
     def __init__(self, nn_input: int) -> None:
         self.observations = torch.zeros((self.BUFFER_SIZE, nn_input))
@@ -27,10 +25,6 @@ class Buffer:
         self.rewards[self.reward_index] = reward
         self.terminations[self.reward_index] = terminated
 
-    def last_observation(self) -> tuple[torch.tensor, torch.tensor]:
-        assert self.observation_index == self.reward_index
-        return self.observations[self.observation_index], self.rewards[self.reward_index].unsqueeze(0)
-
     def random_episode(self) -> typing.Optional[tuple[torch.tensor, torch.tensor]]:
         episode_boundaries = self.terminations.nonzero() + 1
         episode_count = len(episode_boundaries) - 1
@@ -38,48 +32,57 @@ class Buffer:
             return None
         episode_number = torch.randint(0, episode_count, (1,))
         episode_boundary = episode_boundaries[episode_number:episode_number + 2]
+        assert episode_boundary.shape == (2, 1)
         episode_slice = slice(episode_boundary[0], episode_boundary[1])
         return self.observations[episode_slice], self.rewards[episode_slice]
 
-    def random_observation(self) -> typing.Optional[tuple[torch.tensor, torch.tensor]]:
+    def random_observation(self) -> typing.Optional[tuple[torch.tensor, torch.tensor, torch.tensor]]:
         assert self.observation_index == self.reward_index
         random_episode = self.random_episode()
         if random_episode is None:
             return None
         observations, rewards = random_episode
         assert len(observations) == len(rewards)
-        observation_index = torch.randint(0, len(observations), (1,))
-        discounts = self.REWARD_DECAY ** torch.arange(len(observations) - int(observation_index) - 1, -1, -1)
-        return observations[observation_index], (rewards[observation_index:] * discounts).sum().unsqueeze(0)
+        observation_index = torch.randint(0, len(observations) - 1, (1,))
+        return observations[observation_index], observations[observation_index + 1], rewards[observation_index]
 
-    def random_observations(self, number: int) -> typing.Optional[tuple[torch.tensor, torch.tensor]]:
+    def random_observations(self, number: int) -> typing.Optional[tuple[torch.tensor, torch.tensor, torch.tensor]]:
         observations = torch.zeros((number, 28))
+        next_observations = torch.zeros((number, 28))
         rewards = torch.zeros((number, 1))
         for i in range(number):
             random_observation = self.random_observation()
             if random_observation is None:
                 return None
-            observations[i], rewards[i] = random_observation
-        return observations, rewards
+            observations[i], next_observations[i], rewards[i] = random_observation
+        return observations, next_observations, rewards
 
 
 class Agent:
-    RANDOM_ACTION_PROBABILITY: float = 0.1
+    RANDOM_ACTION_PROBABILITY: float = 0.5
     assert 0 < RANDOM_ACTION_PROBABILITY < 1
-    NN_WIDTH: int = 2000
+    # NN_WIDTH: int = 2 ** 11
+    NN_WIDTH: int = 2 ** 2
     OBSERVATION_LENGTH: int = 24
     ACTION_LENGTH: int = 4
     ACTION_COUNT: int = 40
     NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
     SAVE_PATH: str = "model"
+    TRAIN_BATCH_SIZE: int = 5
+    DISCOUNT_FACTOR: float = 0.9
+    assert 0 < DISCOUNT_FACTOR < 1
 
     def __init__(self) -> None:
         self.buffer: Buffer = Buffer(nn_input=self.NN_INPUT)
         self.action_space: torch.tensor = torch.combinations(torch.linspace(-1, 1, self.ACTION_COUNT),
                                                              self.ACTION_LENGTH,
                                                              with_replacement=True)
+        self.train_action_space: torch.tensor = self.action_space.unsqueeze(1).repeat(1, self.TRAIN_BATCH_SIZE, 1)
         self.neural_network: torch.nn.Sequential = torch.nn.Sequential(
             torch.nn.Linear(self.NN_INPUT, self.NN_WIDTH),
+            torch.nn.BatchNorm1d(self.NN_WIDTH),
+            torch.nn.ReLU(),
+            torch.nn.Linear(self.NN_WIDTH, self.NN_WIDTH),
             torch.nn.BatchNorm1d(self.NN_WIDTH),
             torch.nn.ReLU(),
             torch.nn.Linear(self.NN_WIDTH, self.NN_WIDTH),
@@ -115,23 +118,31 @@ class Agent:
         assert min(best_action) >= -1
         assert max(best_action) <= 1
         self.buffer.push_observation(observation=observation_action)
-        print(best_action)
         return best_action.cpu().numpy()
 
     def reward(self, reward: float, terminated: bool) -> None:
         self.buffer.push_reward(reward=reward, terminated=terminated)
 
     def train(self) -> None:
-        random_observations = self.buffer.random_observations(number=100)
+        random_observations = self.buffer.random_observations(number=self.TRAIN_BATCH_SIZE)
         if random_observations is None:
             return
-        observation_actions, final_rewards = random_observations
+        observation_actions, next_observation_actions, immediate_rewards = random_observations
+        next_observations = next_observation_actions[:, :-self.ACTION_LENGTH]
+        a = next_observations.repeat(self.train_action_space.shape[0], 1, 1)
+        b = torch.concatenate((a, self.train_action_space), 2)
+        b_flat = b.flatten(0, 1)
+        c = self.neural_network(b_flat).unflatten(0, b.shape[:2]).squeeze(2)
+        best_next_action_indexes = c.argmax(0)
+        best_next_actions = self.action_space[best_next_action_indexes]
+        best_next_observation_actions = torch.concatenate((next_observations, best_next_actions), dim=1)
+        # Learn
         self.optimiser.zero_grad()
-        predicted_final_rewards = self.neural_network(observation_actions)
-        loss = self.loss_function(final_rewards, predicted_final_rewards)
+        target = immediate_rewards + self.DISCOUNT_FACTOR * self.neural_network(best_next_observation_actions)
+        prediction = self.neural_network(observation_actions)
+        loss = self.loss_function(target, prediction)
         loss.backward()
         self.optimiser.step()
-        print(loss)
 
     def save(self) -> None:
         torch.save(self.neural_network.state_dict(), self.SAVE_PATH)
