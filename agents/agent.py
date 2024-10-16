@@ -5,7 +5,7 @@ import torch
 
 
 class Buffer:
-    BUFFER_SIZE: int = 2 ** 24
+    BUFFER_SIZE: int = 2 ** 22
     assert BUFFER_SIZE > 0
 
     def __init__(self, nn_input: int) -> None:
@@ -47,8 +47,8 @@ class Buffer:
         return observations[observation_index], observations[(observation_index + 1) % len(observations)], rewards[
             observation_index], terminations[observation_index]
 
-    def random_observations(self, number: int) -> typing.Optional[
-        tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor]]:
+    def random_observations(self, number: int) \
+            -> typing.Optional[tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor]]:
         observations = torch.zeros((number, 28))
         next_observations = torch.zeros((number, 28))
         rewards = torch.zeros((number, 1))
@@ -62,18 +62,19 @@ class Buffer:
 
 
 class Agent:
-    RANDOM_ACTION_PROBABILITY: float = 0.5
-    assert 0 < RANDOM_ACTION_PROBABILITY < 1
-    # NN_WIDTH: int = 2 ** 11
-    NN_WIDTH: int = 2 ** 2
-    OBSERVATION_LENGTH: int = 24
-    ACTION_LENGTH: int = 4
-    ACTION_COUNT: int = 40
-    NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
-    SAVE_PATH: str = "model"
-    TRAIN_BATCH_SIZE: int = 5
+    RANDOM_ACTION_PROBABILITY: float = 1
+    RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 20
+    assert 0 < RANDOM_ACTION_PROBABILITY_DECAY < 1
+    NN_WIDTH: int = 2 ** 8
+    TRAIN_BATCH_SIZE: int = 2 ** 3
+    ACTION_COUNT: int = 2 ** 5
     DISCOUNT_FACTOR: float = 0.9
     assert 0 < DISCOUNT_FACTOR < 1
+
+    OBSERVATION_LENGTH: int = 24
+    ACTION_LENGTH: int = 4
+    NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
+    SAVE_PATH: str = "model"
 
     def __init__(self) -> None:
         self.buffer: Buffer = Buffer(nn_input=self.NN_INPUT)
@@ -147,7 +148,8 @@ class Agent:
         loss = self.loss_function(target, prediction)
         loss.backward()
         self.optimiser.step()
+        self.RANDOM_ACTION_PROBABILITY *= self.RANDOM_ACTION_PROBABILITY_DECAY
 
     def save(self) -> None:
         torch.save(self.neural_network.state_dict(), self.SAVE_PATH)
-        print("model saved")
+        print("model saved", self.RANDOM_ACTION_PROBABILITY)
