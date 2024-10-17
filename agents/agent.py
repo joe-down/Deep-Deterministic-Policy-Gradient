@@ -22,14 +22,18 @@ class Agent:
     SAVE_PATH: str = "model"
     BUFFER_SAVE_PATH: str = "buffer"
 
-    def __init__(self) -> None:
-        try:
-            with open(self.BUFFER_SAVE_PATH, 'rb') as buffer_save_file:
-                self.buffer = pickle.load(buffer_save_file)
-            print("buffer loaded")
-        except FileNotFoundError:
-            self.buffer = Buffer(nn_input=self.NN_INPUT)
-            print("buffer initialised")
+    def __init__(self, training: bool = False) -> None:
+        if training:
+            try:
+                with open(self.BUFFER_SAVE_PATH, 'rb') as buffer_save_file:
+                    self.buffer = pickle.load(buffer_save_file)
+                print("buffer loaded")
+            except FileNotFoundError:
+                self.buffer = Buffer(nn_input=self.NN_INPUT)
+                print("buffer initialised")
+        else:
+            self.buffer = None
+            print("buffer ignored (no train)")
         combinations = itertools.combinations_with_replacement(self.POSSIBLE_ACTIONS, self.ACTION_LENGTH)
         permutations = (torch.tensor(tuple(itertools.permutations(combination))).unique(dim=0)
                         for combination in combinations)
@@ -56,11 +60,15 @@ class Agent:
         self.optimiser: torch.optim.Optimizer = torch.optim.Adam(params=self.neural_network.parameters())
         self.loss_function: torch.nn.MSELoss = torch.nn.MSELoss()
 
-    def action(self, observation: numpy.ndarray, random_actions: bool = False) -> numpy.ndarray:
+    @property
+    def training(self) -> bool:
+        return self.buffer is not None
+
+    def action(self, observation: numpy.ndarray) -> numpy.ndarray:
         assert observation.shape == (self.OBSERVATION_LENGTH,)
         observation = torch.tensor(observation)
 
-        if not random_actions or torch.rand(1) > self.RANDOM_ACTION_PROBABILITY:
+        if not self.training or torch.rand(1) > self.RANDOM_ACTION_PROBABILITY:
             observation_actions = torch.concatenate(
                 (observation.repeat(self.action_space.shape[0], 1), self.action_space), 1)
             best_expected_reward_action_index = self.neural_network.forward(observation_actions).argmax()
@@ -74,15 +82,19 @@ class Agent:
         assert best_action.shape == (self.ACTION_LENGTH,)
         assert min(best_action) >= -1
         assert max(best_action) <= 1
-        if random_actions:
+        if self.training:
             self.buffer.push_observation(observation=observation_action)
         return best_action.cpu().numpy()
 
     def reward(self, reward: float, terminated: bool) -> None:
+        if not self.training:
+            return
         self.buffer.push_reward(reward=reward, terminated=terminated)
         self.train()
 
     def train(self) -> None:
+        if not self.training:
+            return
         if not self.buffer.buffer_observations_ready():
             return
         observation_actions, next_observation_actions, immediate_rewards, terminations \
@@ -107,6 +119,8 @@ class Agent:
         print(f"{float(loss)=}, {self.RANDOM_ACTION_PROBABILITY=}")
 
     def save(self) -> None:
+        if not self.training:
+            return
         torch.save(self.neural_network.state_dict(), self.SAVE_PATH)
         print("model saved")
         with open(self.BUFFER_SAVE_PATH, 'wb') as buffer_save_file:
