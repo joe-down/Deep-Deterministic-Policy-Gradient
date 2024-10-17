@@ -74,7 +74,8 @@ class Agent:
         assert best_action.shape == (self.ACTION_LENGTH,)
         assert min(best_action) >= -1
         assert max(best_action) <= 1
-        self.buffer.push_observation(observation=observation_action)
+        if random_actions:
+            self.buffer.push_observation(observation=observation_action)
         return best_action.cpu().numpy()
 
     def reward(self, reward: float, terminated: bool) -> None:
