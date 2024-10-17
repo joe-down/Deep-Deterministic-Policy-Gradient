@@ -22,7 +22,7 @@ class Agent:
 
     def __init__(self) -> None:
         self.buffer: Buffer = Buffer(nn_input=self.NN_INPUT)
-        combinations = itertools.combinations_with_replacement(self.POSSIBLE_ACTIONS, 3)
+        combinations = itertools.combinations_with_replacement(self.POSSIBLE_ACTIONS, self.ACTION_LENGTH)
         permutations = (torch.tensor(tuple(itertools.permutations(combination))).unique(dim=0)
                         for combination in combinations)
         self.action_space = torch.concatenate(tuple(permutations), dim=0)
