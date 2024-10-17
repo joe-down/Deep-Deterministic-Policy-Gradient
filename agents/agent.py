@@ -21,7 +21,13 @@ class Agent:
     SAVE_PATH: str = "model"
 
     def __init__(self) -> None:
-        self.buffer: Buffer = Buffer(nn_input=self.NN_INPUT)
+        try:
+            with open(self.BUFFER_SAVE_PATH, 'rb') as buffer_save_file:
+                self.buffer = pickle.load(buffer_save_file)
+            print("buffer loaded")
+        except FileNotFoundError:
+            self.buffer = Buffer(nn_input=self.NN_INPUT)
+            print("buffer initialised")
         combinations = itertools.combinations_with_replacement(self.POSSIBLE_ACTIONS, self.ACTION_LENGTH)
         permutations = (torch.tensor(tuple(itertools.permutations(combination))).unique(dim=0)
                         for combination in combinations)
@@ -94,8 +100,11 @@ class Agent:
         loss.backward()
         self.optimiser.step()
         self.RANDOM_ACTION_PROBABILITY *= self.RANDOM_ACTION_PROBABILITY_DECAY
-        print(loss)
+        print(f"{float(loss)=}, {self.RANDOM_ACTION_PROBABILITY=}")
 
     def save(self) -> None:
         torch.save(self.neural_network.state_dict(), self.SAVE_PATH)
-        print("model saved", self.RANDOM_ACTION_PROBABILITY)
+        print("model saved")
+        with open(self.BUFFER_SAVE_PATH, 'wb') as buffer_save_file:
+            pickle.dump(self.buffer, buffer_save_file)
+        print("buffer saved")
