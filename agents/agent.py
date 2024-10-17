@@ -1,3 +1,4 @@
+import itertools
 import numpy
 import torch
 from agents.buffer import Buffer
@@ -15,14 +16,16 @@ class Agent:
 
     OBSERVATION_LENGTH: int = 24
     ACTION_LENGTH: int = 4
+    POSSIBLE_ACTIONS = torch.linspace(-1, 1, ACTION_COUNT)
     NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
     SAVE_PATH: str = "model"
 
     def __init__(self) -> None:
         self.buffer: Buffer = Buffer(nn_input=self.NN_INPUT)
-        self.action_space: torch.tensor = torch.combinations(torch.linspace(-1, 1, self.ACTION_COUNT),
-                                                             self.ACTION_LENGTH,
-                                                             with_replacement=True)
+        combinations = itertools.combinations_with_replacement(self.POSSIBLE_ACTIONS, 3)
+        permutations = (torch.tensor(tuple(itertools.permutations(combination))).unique(dim=0)
+                        for combination in combinations)
+        self.action_space = torch.concatenate(tuple(permutations), dim=0)
         self.train_action_space: torch.tensor = self.action_space.unsqueeze(1).repeat(1, self.TRAIN_BATCH_SIZE, 1)
         self.neural_network: torch.nn.Sequential = torch.nn.Sequential(
             torch.nn.Linear(self.NN_INPUT, self.NN_WIDTH),
