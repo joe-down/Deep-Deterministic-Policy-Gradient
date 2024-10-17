@@ -56,11 +56,11 @@ class Agent:
         self.optimiser: torch.optim.Optimizer = torch.optim.Adam(params=self.neural_network.parameters())
         self.loss_function: torch.nn.MSELoss = torch.nn.MSELoss()
 
-    def action(self, observation: numpy.ndarray) -> numpy.ndarray:
+    def action(self, observation: numpy.ndarray, random_actions: bool = False) -> numpy.ndarray:
         assert observation.shape == (self.OBSERVATION_LENGTH,)
         observation = torch.tensor(observation)
 
-        if torch.rand(1) > self.RANDOM_ACTION_PROBABILITY:
+        if not random_actions or torch.rand(1) > self.RANDOM_ACTION_PROBABILITY:
             observation_actions = torch.concatenate(
                 (observation.repeat(self.action_space.shape[0], 1), self.action_space), 1)
             best_expected_reward_action_index = self.neural_network.forward(observation_actions).argmax()

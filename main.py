@@ -9,7 +9,7 @@ def run(env: gymnasium.Env, agent: Agent, train: bool) -> None:
     observation: numpy.ndarray
     observation, info = env.reset(seed=42)
     while True:
-        action = agent.action(observation)[0]
+        action = agent.action(observation, random_actions=train)[0]
         observation, reward, terminated, truncated, info = env.step(action)
         dead = terminated or truncated
         if train:
