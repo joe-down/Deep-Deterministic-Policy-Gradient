@@ -19,6 +19,7 @@ class Agent:
     POSSIBLE_ACTIONS = torch.linspace(-1, 1, ACTION_COUNT)
     NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
     SAVE_PATH: str = "model"
+    BUFFER_SAVE_PATH: str = "buffer"
 
     def __init__(self) -> None:
         try:
