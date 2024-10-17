@@ -8,17 +8,16 @@ from agents.buffer import Buffer
 
 class Agent:
     RANDOM_ACTION_PROBABILITY: float = 1
-    RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 20
+    RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 17
     assert 0 < RANDOM_ACTION_PROBABILITY_DECAY < 1
-    NN_WIDTH: int = 2 ** 8
-    TRAIN_BATCH_SIZE: int = 2 ** 3
-    ACTION_COUNT: int = 2 ** 5
+    NN_WIDTH: int = 2 ** 12
+    TRAIN_BATCH_SIZE: int = 2 ** 8
     DISCOUNT_FACTOR: float = 0.9
     assert 0 < DISCOUNT_FACTOR < 1
 
-    OBSERVATION_LENGTH: int = 24
-    ACTION_LENGTH: int = 4
-    POSSIBLE_ACTIONS = torch.linspace(-1, 1, ACTION_COUNT)
+    OBSERVATION_LENGTH: int = 4
+    ACTION_LENGTH: int = 1
+    POSSIBLE_ACTIONS = torch.tensor([0, 1])
     NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
     SAVE_PATH: str = "model"
     BUFFER_SAVE_PATH: str = "buffer"

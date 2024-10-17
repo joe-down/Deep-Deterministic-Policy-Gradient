@@ -2,7 +2,7 @@ import torch
 
 
 class Buffer:
-    BUFFER_SIZE: int = 2 ** 22
+    BUFFER_SIZE: int = 2 ** 28
     assert BUFFER_SIZE > 0
 
     def __init__(self, nn_input: int) -> None:
