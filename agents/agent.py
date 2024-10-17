@@ -59,7 +59,7 @@ class Agent:
             best_action = self.action_space[best_expected_reward_action_index]
             observation_action = observation_actions[best_expected_reward_action_index]
         else:
-            best_action = torch.rand(self.ACTION_LENGTH) * 2 - 1
+            best_action = self.action_space[torch.randint(0, len(self.action_space), ())]
             observation_action = torch.concatenate((observation, best_action))
 
         assert observation_action.shape == (self.NN_INPUT,)
