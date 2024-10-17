@@ -14,7 +14,6 @@ def run(env: gymnasium.Env, agent: Agent, train: bool) -> None:
         dead = terminated or truncated
         if train:
             agent.reward(reward=-100 if dead else float(reward), terminated=dead)
-            agent.train()
         if dead:
             observation, info = env.reset()
             print("task failed")

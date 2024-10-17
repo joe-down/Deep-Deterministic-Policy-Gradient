@@ -79,6 +79,7 @@ class Agent:
 
     def reward(self, reward: float, terminated: bool) -> None:
         self.buffer.push_reward(reward=reward, terminated=terminated)
+        self.train()
 
     def train(self) -> None:
         if not self.buffer.buffer_observations_ready():
