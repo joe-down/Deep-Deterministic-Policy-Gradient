@@ -23,6 +23,8 @@
               python-pkgs.pygame
               #Pytorch
               python-pkgs.torch-bin
+              #matplotlib
+              python-pkgs.matplotlib
             ]))
             ffmpeg
             opencv4
