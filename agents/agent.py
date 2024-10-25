@@ -1,3 +1,4 @@
+import copy
 import itertools
 import pickle
 
@@ -14,6 +15,7 @@ class Agent:
     TRAIN_BATCH_SIZE: int = 2 ** 8
     DISCOUNT_FACTOR: float = 0.9
     assert 0 < DISCOUNT_FACTOR < 1
+    TARGET_NETWORK_UPDATE_TIME: int = 100
 
     OBSERVATION_LENGTH: int = 4
     ACTION_LENGTH: int = 1
@@ -57,6 +59,8 @@ class Agent:
             print("model loaded")
         except FileNotFoundError:
             print("model initialised")
+        self.target_neural_network = copy.deepcopy(self.neural_network)
+        self.target_neural_network_update_counter: int = 0
         self.optimiser: torch.optim.Optimizer = torch.optim.Adam(params=self.neural_network.parameters())
         self.loss_function: torch.nn.MSELoss = torch.nn.MSELoss()
 
@@ -109,13 +113,18 @@ class Agent:
         best_next_observation_actions = torch.concatenate((next_observations, best_next_actions), dim=1)
         # Learn
         self.optimiser.zero_grad()
-        target = immediate_rewards + self.DISCOUNT_FACTOR * (1 - terminations) * self.neural_network(
-            best_next_observation_actions)
+        target = (immediate_rewards + self.DISCOUNT_FACTOR * (1 - terminations)
+                  * self.target_neural_network(best_next_observation_actions))
         prediction = self.neural_network(observation_actions)
         loss = self.loss_function(target, prediction)
         loss.backward()
         self.optimiser.step()
         self.RANDOM_ACTION_PROBABILITY *= self.RANDOM_ACTION_PROBABILITY_DECAY
+        # Update target network
+        self.target_neural_network_update_counter = ((self.target_neural_network_update_counter + 1)
+                                                     % self.TARGET_NETWORK_UPDATE_TIME)
+        if self.target_neural_network_update_counter == 0:
+            self.target_neural_network = copy.deepcopy(self.neural_network)
         return float(loss)
 
     def save(self) -> None:
