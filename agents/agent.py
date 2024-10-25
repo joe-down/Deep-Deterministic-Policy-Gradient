@@ -86,17 +86,17 @@ class Agent:
             self.buffer.push_observation(observation=observation_action)
         return best_action.cpu().numpy()
 
-    def reward(self, reward: float, terminated: bool) -> None:
+    def reward(self, reward: float, terminated: bool) -> float:
         if not self.training:
-            return
+            return 0
         self.buffer.push_reward(reward=reward, terminated=terminated)
-        self.train()
+        return self.train()
 
-    def train(self) -> None:
+    def train(self) -> float:
         if not self.training:
-            return
+            return 0
         if not self.buffer.buffer_observations_ready():
-            return
+            return 0
         observation_actions, next_observation_actions, immediate_rewards, terminations \
             = self.buffer.random_observations(number=self.TRAIN_BATCH_SIZE)
         next_observations = next_observation_actions[:, :-self.ACTION_LENGTH]
@@ -116,7 +116,7 @@ class Agent:
         loss.backward()
         self.optimiser.step()
         self.RANDOM_ACTION_PROBABILITY *= self.RANDOM_ACTION_PROBABILITY_DECAY
-        print(f"{float(loss)=}, {self.RANDOM_ACTION_PROBABILITY=}")
+        return float(loss)
 
     def save(self) -> None:
         if not self.training:
