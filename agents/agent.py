@@ -58,11 +58,17 @@ class Agent:
             self.neural_network.load_state_dict(torch.load(self.SAVE_PATH))
             print("model loaded")
         except FileNotFoundError:
+            self.neural_network.apply(self.neural_network_initialisation)
             print("model initialised")
         self.target_neural_network = copy.deepcopy(self.neural_network)
         self.target_neural_network_update_counter: int = 0
         self.optimiser: torch.optim.Optimizer = torch.optim.Adam(params=self.neural_network.parameters())
         self.loss_function: torch.nn.MSELoss = torch.nn.MSELoss()
+
+    @staticmethod
+    def neural_network_initialisation(module):
+        if isinstance(module, torch.nn.Linear):
+            torch.nn.init.xavier_uniform_(module.weight)
 
     @property
     def training(self) -> bool:
