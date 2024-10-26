@@ -3,7 +3,7 @@ import torch
 
 class Buffer:
     def __init__(self, nn_input: int) -> None:
-        self.BUFFER_SIZE: int = 2 ** 3
+        self.BUFFER_SIZE: int = 5
         assert self.BUFFER_SIZE > 0
 
         assert nn_input >= 1
@@ -12,11 +12,11 @@ class Buffer:
         self.observations: torch.Tensor = torch.zeros((self.BUFFER_SIZE, self.nn_input_length))
         self.observation_index: int = 0
 
-        self.rewards: torch.Tensor = torch.zeros(self.BUFFER_SIZE)
-        self.terminations: torch.Tensor = torch.zeros(self.BUFFER_SIZE)
+        self.rewards: torch.Tensor = torch.zeros(self.BUFFER_SIZE, 1)
+        self.terminations: torch.Tensor = torch.zeros(self.BUFFER_SIZE, 1)
         self.reward_termination_index: int = 0
 
-        self.buffer_end: int = 0
+        self.entry_count: int = 0
 
     def push_observation(self, observation: torch.tensor) -> None:
         assert observation.shape == (self.nn_input_length,)
@@ -29,25 +29,26 @@ class Buffer:
         self.rewards[self.reward_termination_index] = reward
         self.terminations[self.reward_termination_index] = terminated
         self.reward_termination_index = (self.reward_termination_index + 1) % self.BUFFER_SIZE
-        self.update_end()
+        self.update_entry_count()
 
-    def update_end(self) -> None:
+    def update_entry_count(self) -> None:
         assert self.observation_index == self.reward_termination_index
-        self.buffer_end = max(self.buffer_end, self.observation_index)
+        self.entry_count = max(self.entry_count, (self.observation_index - 1) % (self.BUFFER_SIZE + 1))
 
     def buffer_observations_ready(self) -> bool:
-        return self.buffer_end >= 2
+        return self.entry_count >= 2 and self.observation_index == self.reward_termination_index
 
     def filled(self) -> bool:
-        return self.buffer_end == self.BUFFER_SIZE - 1
+        return self.entry_count == self.BUFFER_SIZE - 1
 
     def random_observations(self, number: int) -> tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor]:
         assert self.buffer_observations_ready()
-        indexes = torch.randint(0, self.buffer_end, (number,))
+        valid_indexes = torch.tensor([i for i in range(self.entry_count) if i != self.observation_index])
+        indexes = valid_indexes[torch.randint(0, self.entry_count - 1, (number,))]
         states, next_states, rewards, terminations = (self.observations[indexes],
                                                       self.observations[(indexes + 1) % self.BUFFER_SIZE],
-                                                      self.rewards[indexes].unsqueeze(1),
-                                                      self.terminations[indexes].unsqueeze(1))
+                                                      self.rewards[indexes],
+                                                      self.terminations[indexes])
         assert states.shape == next_states.shape == (number, self.nn_input_length)
-        assert rewards.shape == terminations.shape == (number,)
+        assert rewards.shape == terminations.shape == (number, 1)
         return states, next_states, rewards, terminations
