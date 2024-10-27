@@ -1,6 +1,5 @@
 import copy
 import itertools
-import pickle
 
 import numpy
 import torch
@@ -10,13 +9,13 @@ from agents.buffer import Buffer
 class Agent:
     RANDOM_ACTION_PROBABILITY: float = 1
     MINIMUM_RANDOM_ACTION_PROBABILITY: float = 1 / 100
-    RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 17
+    RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 14
     assert 0 < RANDOM_ACTION_PROBABILITY_DECAY < 1
     NN_WIDTH: int = 2 ** 12
-    TRAIN_BATCH_SIZE: int = 2 ** 8
+    TRAIN_BATCH_SIZE: int = 2 ** 7
     DISCOUNT_FACTOR: float = 0.9
     assert 0 < DISCOUNT_FACTOR < 1
-    TARGET_NETWORK_UPDATE_TIME: int = 100
+    TARGET_NETWORK_UPDATE_TIME: int = 1000
 
     OBSERVATION_LENGTH: int = 4
     ACTION_LENGTH: int = 1
