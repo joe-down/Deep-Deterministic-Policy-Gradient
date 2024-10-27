@@ -26,13 +26,8 @@ class Agent:
 
     def __init__(self, training: bool = False) -> None:
         if training:
-            try:
-                with open(self.BUFFER_SAVE_PATH, 'rb') as buffer_save_file:
-                    self.buffer = pickle.load(buffer_save_file)
-                print("buffer loaded")
-            except FileNotFoundError:
-                self.buffer = Buffer(nn_input=self.NN_INPUT)
-                print("buffer initialised")
+            self.buffer = Buffer(nn_input=self.NN_INPUT)
+            print("buffer initialised")
         else:
             self.buffer = None
             print("buffer ignored (no train)")
@@ -138,6 +133,3 @@ class Agent:
             return
         torch.save(self.neural_network.state_dict(), self.SAVE_PATH)
         print("model saved")
-        with open(self.BUFFER_SAVE_PATH, 'wb') as buffer_save_file:
-            pickle.dump(self.buffer, buffer_save_file)
-        print("buffer saved")
