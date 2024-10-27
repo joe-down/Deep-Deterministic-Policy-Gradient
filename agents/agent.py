@@ -25,28 +25,31 @@ class Agent:
     SAVE_PATH: str = "model"
 
     def __init__(self, training: bool = False) -> None:
+        # Buffer
         if training:
             self.buffer = Buffer(nn_input=self.NN_INPUT)
             print("buffer initialised")
         else:
             self.buffer = None
             print("buffer ignored (no train)")
+
+        # Action spaces
         combinations = itertools.combinations_with_replacement(self.POSSIBLE_ACTIONS, self.ACTION_LENGTH)
         permutations = (torch.tensor(tuple(itertools.permutations(combination))).unique(dim=0)
                         for combination in combinations)
         self.action_space = torch.concatenate(tuple(permutations), dim=0)
-        self.train_action_space: torch.tensor = self.action_space.unsqueeze(1).repeat(1, self.TRAIN_BATCH_SIZE, 1)
+        assert self.action_space.dim() == 2 and self.action_space.shape[1] == self.ACTION_LENGTH
+        self.train_action_space: torch.tensor = self.action_space.repeat(self.TRAIN_BATCH_SIZE, 1, 1)
+        assert self.train_action_space.shape == (self.TRAIN_BATCH_SIZE, self.action_space.shape[0], self.ACTION_LENGTH)
+
+        # Neural networks
         self.neural_network: torch.nn.Sequential = torch.nn.Sequential(
             torch.nn.Linear(self.NN_INPUT, self.NN_WIDTH),
-            torch.nn.BatchNorm1d(self.NN_WIDTH),
             torch.nn.ReLU(),
             torch.nn.Linear(self.NN_WIDTH, self.NN_WIDTH),
-            torch.nn.BatchNorm1d(self.NN_WIDTH),
             torch.nn.ReLU(),
             torch.nn.Linear(self.NN_WIDTH, self.NN_WIDTH),
-            torch.nn.BatchNorm1d(self.NN_WIDTH),
             torch.nn.ReLU(),
-            torch.nn.Dropout(),
             torch.nn.Linear(self.NN_WIDTH, 1),
         )
         try:
@@ -105,18 +108,28 @@ class Agent:
         observation_actions, next_observation_actions, immediate_rewards, terminations \
             = self.buffer.random_observations(number=self.TRAIN_BATCH_SIZE)
         next_observations = next_observation_actions[:, :-self.ACTION_LENGTH]
-        a = next_observations.repeat(self.train_action_space.shape[0], 1, 1)
+        assert next_observations.shape == (self.TRAIN_BATCH_SIZE, self.OBSERVATION_LENGTH)
+        a = next_observations.unsqueeze(1).repeat(1, self.train_action_space.shape[1], 1)
+        assert a.shape == (self.TRAIN_BATCH_SIZE, self.train_action_space.shape[1], self.OBSERVATION_LENGTH)
         b = torch.concatenate((a, self.train_action_space), 2)
+        assert b.shape == (self.TRAIN_BATCH_SIZE, self.train_action_space.shape[1], self.NN_INPUT)
         b_flat = b.flatten(0, 1)
-        c = self.neural_network(b_flat).unflatten(0, b.shape[:2]).squeeze(2)
-        best_next_action_indexes = c.argmax(0)
+        assert b_flat.shape == (self.TRAIN_BATCH_SIZE * self.train_action_space.shape[1], self.NN_INPUT)
+        b_2 = self.neural_network(b_flat)
+        assert b_2.shape == (self.TRAIN_BATCH_SIZE * self.train_action_space.shape[1], 1)
+        c = b_2.unflatten(0, b.shape[:2])
+        assert c.shape == (self.TRAIN_BATCH_SIZE, self.train_action_space.shape[1], 1)
+        best_next_action_indexes = c.argmax(1).squeeze(1)
+        assert best_next_action_indexes.shape == (self.TRAIN_BATCH_SIZE,)
         best_next_actions = self.action_space[best_next_action_indexes]
+        assert best_next_actions.shape == (self.TRAIN_BATCH_SIZE, self.ACTION_LENGTH)
         best_next_observation_actions = torch.concatenate((next_observations, best_next_actions), dim=1)
+        assert best_next_observation_actions.shape == (self.TRAIN_BATCH_SIZE, self.NN_INPUT)
         # Learn
-        self.optimiser.zero_grad()
         target = (immediate_rewards + self.DISCOUNT_FACTOR * (1 - terminations)
                   * self.target_neural_network(best_next_observation_actions))
         prediction = self.neural_network(observation_actions)
+        self.optimiser.zero_grad()
         loss = self.loss_function(target, prediction)
         loss.backward()
         self.optimiser.step()
