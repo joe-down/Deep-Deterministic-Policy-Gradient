@@ -23,7 +23,6 @@ class Agent:
     POSSIBLE_ACTIONS = torch.tensor([0, 1])
     NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
     SAVE_PATH: str = "model"
-    BUFFER_SAVE_PATH: str = "buffer"
 
     def __init__(self, training: bool = False) -> None:
         if training:
