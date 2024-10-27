@@ -22,21 +22,21 @@ def run(env: gymnasium.Env, agent: Agent) -> None:
         action = agent.action(observation)[0]
         observation, reward, terminated, truncated, info = env.step(action)
         dead = terminated or truncated
-        loss = agent.reward(reward=-100 if dead else float(reward), terminated=dead)
+        loss = agent.reward(float(reward), terminated=dead)
         if dead:
             # Log
             dead_times.append(frames)
-            model_subplot.plot(dead_times)
             losses.append(loss)
-            loss_subplot.plot(losses)
             random_action_probabilities.append(agent.RANDOM_ACTION_PROBABILITY)
-            random_action_probabilities_subplot.plot(random_action_probabilities)
-            figure.canvas.draw()
-            figure.canvas.flush_events()
+            if len(dead_times) % 10 == 0:
+                model_subplot.plot(dead_times)
+                loss_subplot.plot(losses)
+                random_action_probabilities_subplot.plot(random_action_probabilities)
+                figure.canvas.draw()
+                figure.canvas.flush_events()
             frames = 0
             # Reset
             observation, info = env.reset()
-            print("task failed")
         else:
             frames += 1
 
