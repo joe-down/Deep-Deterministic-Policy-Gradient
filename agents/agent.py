@@ -9,6 +9,7 @@ from agents.buffer import Buffer
 
 class Agent:
     RANDOM_ACTION_PROBABILITY: float = 1
+    MINIMUM_RANDOM_ACTION_PROBABILITY: float = 1 / 100
     RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 17
     assert 0 < RANDOM_ACTION_PROBABILITY_DECAY < 1
     NN_WIDTH: int = 2 ** 12
@@ -120,7 +121,8 @@ class Agent:
         loss = self.loss_function(target, prediction)
         loss.backward()
         self.optimiser.step()
-        self.RANDOM_ACTION_PROBABILITY *= self.RANDOM_ACTION_PROBABILITY_DECAY
+        self.RANDOM_ACTION_PROBABILITY = max(self.RANDOM_ACTION_PROBABILITY * self.RANDOM_ACTION_PROBABILITY_DECAY,
+                                             self.MINIMUM_RANDOM_ACTION_PROBABILITY)
         # Update target network
         self.target_neural_network_update_counter = ((self.target_neural_network_update_counter + 1)
                                                      % self.TARGET_NETWORK_UPDATE_TIME)
