@@ -8,7 +8,7 @@ from agents.agent import Agent
 
 class SuperAgent:
     NN_WIDTH: int = 2 ** 12
-    TRAIN_BATCH_SIZE: int = 2 ** 7
+    TRAIN_BATCH_SIZE: int = 2 ** 11
     DISCOUNT_FACTOR: float = 0.9
     assert 0 < DISCOUNT_FACTOR < 1
     TARGET_NETWORK_UPDATE_TIME: int = 1000
