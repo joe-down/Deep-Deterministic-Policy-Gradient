@@ -10,6 +10,9 @@ if typing.TYPE_CHECKING:
 
 class Agent:
     RANDOM_ACTION_PROBABILITY: float = 1
+    MINIMUM_RANDOM_ACTION_PROBABILITY: float = 1 / 100
+    RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 14
+    assert 0 < RANDOM_ACTION_PROBABILITY_DECAY < 1
 
     def __init__(self, super_agent: "SuperAgent", observation_length: int, action_length: int) -> None:
         self.__super_agent = super_agent
@@ -30,6 +33,9 @@ class Agent:
         assert best_action.shape == (self.__action_length,)
         assert observation_action.shape == (self.__nn_input_length,)
         self.__buffer.push_observation(observation=observation_action)
+        self.RANDOM_ACTION_PROBABILITY = max(self.RANDOM_ACTION_PROBABILITY * self.RANDOM_ACTION_PROBABILITY_DECAY,
+                                             self.MINIMUM_RANDOM_ACTION_PROBABILITY)
+        print(self.RANDOM_ACTION_PROBABILITY)
         return best_action.cpu().numpy()
 
     def reward(self, reward: float, terminated: bool) -> None:
