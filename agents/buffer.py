@@ -42,7 +42,7 @@ class Buffer:
     def filled(self) -> bool:
         return self.entry_count == self.BUFFER_SIZE
 
-    def random_observations(self, number: int) -> tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor]:
+    def random_observations(self, number: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         assert self.buffer_observations_ready()
         valid_indexes = torch.tensor([i for i in range(self.entry_count) if i != self.next_observation_index])
         indexes = valid_indexes[torch.randint(0, self.entry_count - 1, (number,))]
