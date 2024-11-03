@@ -35,7 +35,6 @@ class Agent:
         self.__buffer.push_observation(observation=observation_action)
         self.RANDOM_ACTION_PROBABILITY = max(self.RANDOM_ACTION_PROBABILITY * self.RANDOM_ACTION_PROBABILITY_DECAY,
                                              self.MINIMUM_RANDOM_ACTION_PROBABILITY)
-        print(self.RANDOM_ACTION_PROBABILITY)
         return best_action.cpu().numpy()
 
     def reward(self, reward: float, terminated: bool) -> None:
