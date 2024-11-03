@@ -20,9 +20,10 @@ class SuperAgent:
     SAVE_PATH: str = "model"
 
     def __init__(self, train_agent_count: int, save_path: str = "model"):
-        self.__base_agent = Agent(super_agent=self, observation_length=self.OBSERVATION_LENGTH,
-                                  action_length=self.ACTION_LENGTH)
-        self.__agents = [copy.copy(self.__base_agent) for _ in range(train_agent_count)]
+        self.__agents = [Agent(super_agent=self,
+                               observation_length=self.OBSERVATION_LENGTH,
+                               action_length=self.ACTION_LENGTH)
+                         for _ in range(train_agent_count)]
         self.__save_path = save_path
 
         self.__neural_network: torch.nn.Sequential = torch.nn.Sequential(
