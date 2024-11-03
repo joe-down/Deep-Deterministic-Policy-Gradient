@@ -6,7 +6,7 @@ from runner import Runner
 
 def main(agent_count: int) -> None:
     torch.set_default_device('cuda')
-    super_agent: SuperAgent = SuperAgent(train_agent_count=agent_count)
+    super_agent = SuperAgent(train_agent_count=agent_count)
     runners = [Runner(env=gymnasium.make("CartPole-v1", render_mode="human"), agent=agent)
                for agent in super_agent.agents]
     try:
