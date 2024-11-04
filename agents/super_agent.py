@@ -19,11 +19,15 @@ class SuperAgent(BaseAgent):
     POSSIBLE_ACTIONS = torch.tensor([0, 1])
     NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
     SAVE_PATH: str = "model"
+    BUFFER_SIZE: int = 2 ** 16
+    RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 14
 
     def __init__(self, train_agent_count: int, save_path: str = "model"):
         self.__agents = [Agent(super_agent=self,
                                observation_length=self.OBSERVATION_LENGTH,
-                               action_length=self.ACTION_LENGTH)
+                               action_length=self.ACTION_LENGTH,
+                               buffer_size=self.BUFFER_SIZE,
+                               random_action_probability_decay=self.RANDOM_ACTION_PROBABILITY_DECAY)
                          for _ in range(train_agent_count)]
         self.__save_path = save_path
 

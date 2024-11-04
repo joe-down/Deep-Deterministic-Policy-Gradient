@@ -11,23 +11,30 @@ if typing.TYPE_CHECKING:
 
 
 class Agent(BaseAgent):
-    RANDOM_ACTION_PROBABILITY: float = 1
     MINIMUM_RANDOM_ACTION_PROBABILITY: float = 1 / 100
-    RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 14
-    assert 0 < RANDOM_ACTION_PROBABILITY_DECAY < 1
-    BUFFER_SIZE: int = 2 ** 16
 
-    def __init__(self, super_agent: "SuperAgent", observation_length: int, action_length: int) -> None:
+    def __init__(self, super_agent: "SuperAgent",
+                 observation_length: int,
+                 action_length: int,
+                 buffer_size: int,
+                 random_action_probability_decay: float) -> None:
         self.__super_agent = super_agent
         self.__observation_length = observation_length
         self.__action_length = action_length
         self.__nn_input_length = self.__observation_length + self.__action_length
-        self.__buffer = Buffer(nn_input=self.__nn_input_length, buffer_size=self.BUFFER_SIZE)
+        self.__buffer = Buffer(nn_input=self.__nn_input_length, buffer_size=buffer_size)
+
+        self.__random_action_probability = 1
+        self.__random_action_probability_decay = random_action_probability_decay
+
+    @property
+    def random_action_probability(self) -> float:
+        return self.__random_action_probability
 
     def action(self, observation: numpy.ndarray) -> numpy.ndarray:
         assert observation.shape == (self.__observation_length,)
 
-        if torch.rand(1) > self.RANDOM_ACTION_PROBABILITY:
+        if torch.rand(1) > self.__random_action_probability:
             best_action, observation_action = self.__super_agent.base_action(observation=observation)
         else:
             best_action = self.__super_agent.action_space[torch.randint(0, len(self.__super_agent.action_space), ())]
@@ -36,8 +43,9 @@ class Agent(BaseAgent):
         assert best_action.shape == (self.__action_length,)
         assert observation_action.shape == (self.__nn_input_length,)
         self.__buffer.push_observation(observation=observation_action)
-        self.RANDOM_ACTION_PROBABILITY = max(self.RANDOM_ACTION_PROBABILITY * self.RANDOM_ACTION_PROBABILITY_DECAY,
-                                             self.MINIMUM_RANDOM_ACTION_PROBABILITY)
+        self.__random_action_probability = max(self.__random_action_probability
+                                               * self.__random_action_probability_decay,
+                                               self.MINIMUM_RANDOM_ACTION_PROBABILITY)
         return best_action.cpu().numpy()
 
     def reward(self, reward: float, terminated: bool) -> None:

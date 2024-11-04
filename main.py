@@ -37,7 +37,7 @@ def main(agent_count: int, plot_interval: int) -> None:
                 loss_subplot.plot(losses)
                 survival_times.append(super_runner.run_full())
                 survival_times_subplot.plot(survival_times)
-                random_probabilities.append([agent.RANDOM_ACTION_PROBABILITY for agent in super_agent.agents])
+                random_probabilities.append([agent.random_action_probability for agent in super_agent.agents])
                 random_probability_subplot.plot(random_probabilities)
                 figure.canvas.draw()
                 figure.canvas.flush_events()
