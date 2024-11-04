@@ -3,7 +3,7 @@ import torch
 
 class Buffer:
     def __init__(self, nn_input: int) -> None:
-        self.BUFFER_SIZE: int = 2 ** 12
+        self.BUFFER_SIZE: int = 2 ** 16
         assert self.BUFFER_SIZE > 0
 
         assert nn_input >= 1
