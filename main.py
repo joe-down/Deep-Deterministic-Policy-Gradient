@@ -1,6 +1,7 @@
 import itertools
 
 import gymnasium
+import numpy
 import torch.cuda
 from agents.super_agent import SuperAgent
 from runner import Runner
@@ -13,6 +14,8 @@ def main(agent_count: int, plot_interval: int) -> None:
     super_agent = SuperAgent(train_agent_count=agent_count)
     runners = [Runner(env=gymnasium.make("CartPole-v1", render_mode=None), agent=agent)
                for agent in super_agent.agents]
+    for agent, random_action_minimum in zip(super_agent.agents, numpy.linspace(0, 1, len(super_agent.agents))):
+        agent.MINIMUM_RANDOM_ACTION_PROBABILITY = random_action_minimum
 
     figure = matplotlib.pyplot.figure()
     loss_subplot = figure.add_subplot(1, 1, 1)
