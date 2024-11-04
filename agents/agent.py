@@ -15,13 +15,14 @@ class Agent(BaseAgent):
     MINIMUM_RANDOM_ACTION_PROBABILITY: float = 1 / 100
     RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 14
     assert 0 < RANDOM_ACTION_PROBABILITY_DECAY < 1
+    BUFFER_SIZE: int = 2 ** 16
 
     def __init__(self, super_agent: "SuperAgent", observation_length: int, action_length: int) -> None:
         self.__super_agent = super_agent
         self.__observation_length = observation_length
         self.__action_length = action_length
         self.__nn_input_length = self.__observation_length + self.__action_length
-        self.__buffer = Buffer(nn_input=self.__nn_input_length)
+        self.__buffer = Buffer(nn_input=self.__nn_input_length, buffer_size=self.BUFFER_SIZE)
 
     def action(self, observation: numpy.ndarray) -> numpy.ndarray:
         assert observation.shape == (self.__observation_length,)
