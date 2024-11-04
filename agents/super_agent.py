@@ -4,9 +4,10 @@ import numpy
 import itertools
 
 from agents.agent import Agent
+from agents.base_agent import BaseAgent
 
 
-class SuperAgent:
+class SuperAgent(BaseAgent):
     NN_WIDTH: int = 2 ** 12
     TRAIN_BATCH_SIZE: int = 2 ** 15
     DISCOUNT_FACTOR: float = 0.9

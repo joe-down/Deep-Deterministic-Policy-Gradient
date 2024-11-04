@@ -2,13 +2,15 @@ import typing
 
 import numpy
 import torch
+
+from agents.base_agent import BaseAgent
 from agents.buffer import Buffer
 
 if typing.TYPE_CHECKING:
     from agents.super_agent import SuperAgent
 
 
-class Agent:
+class Agent(BaseAgent):
     RANDOM_ACTION_PROBABILITY: float = 1
     MINIMUM_RANDOM_ACTION_PROBABILITY: float = 1 / 100
     RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 14
