@@ -18,8 +18,13 @@ def main(agent_count: int, plot_interval: int) -> None:
         agent.MINIMUM_RANDOM_ACTION_PROBABILITY = random_action_minimum
 
     figure = matplotlib.pyplot.figure()
-    loss_subplot = figure.add_subplot(1, 1, 1)
+    loss_subplot = figure.add_subplot(2, 2, 1)
     losses = []
+    survival_times_subplot = figure.add_subplot(2, 2, 2)
+    survival_times = []
+    super_runner = Runner(env=gymnasium.make("CartPole-v1", render_mode=None), agent=super_agent)
+    random_probability_subplot = figure.add_subplot(2, 2, 3)
+    random_probabilities = []
     figure.show()
 
     try:
@@ -27,8 +32,13 @@ def main(agent_count: int, plot_interval: int) -> None:
             for runner in runners:
                 runner.step()
             losses.append(super_agent.train())
+
             if iteration % plot_interval == 0:
                 loss_subplot.plot(losses)
+                survival_times.append(super_runner.run_full())
+                survival_times_subplot.plot(survival_times)
+                random_probabilities.append([agent.RANDOM_ACTION_PROBABILITY for agent in super_agent.agents])
+                random_probability_subplot.plot(random_probabilities)
                 figure.canvas.draw()
                 figure.canvas.flush_events()
     except KeyboardInterrupt:
