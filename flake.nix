@@ -25,6 +25,8 @@
               python-pkgs.torch-bin
               #matplotlib
               python-pkgs.matplotlib
+              #tqdm
+              python-pkgs.tqdm
             ]))
             ffmpeg
             opencv4
