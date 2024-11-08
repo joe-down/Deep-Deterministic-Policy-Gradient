@@ -48,4 +48,4 @@ def main(agent_count: int, plot_interval: int) -> None:
 
 
 if __name__ == '__main__':
-    main(agent_count=2 ** 9, plot_interval=10)
+    main(agent_count=2 ** 13, plot_interval=100)

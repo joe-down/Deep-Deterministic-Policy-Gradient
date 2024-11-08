@@ -8,19 +8,19 @@ from agents.base_agent import BaseAgent
 
 
 class SuperAgent(BaseAgent):
-    NN_WIDTH: int = 2 ** 12
-    TRAIN_BATCH_SIZE: int = 2 ** 15
+    NN_WIDTH: int = 2 ** 8
+    TRAIN_BATCH_SIZE: int = 2 ** 12
     DISCOUNT_FACTOR: float = 0.9
     assert 0 < DISCOUNT_FACTOR < 1
-    TARGET_NETWORK_UPDATE_TIME: int = 1000
+    TARGET_NETWORK_UPDATE_TIME: int = 100
 
     OBSERVATION_LENGTH: int = 4
     ACTION_LENGTH: int = 1
     POSSIBLE_ACTIONS = torch.tensor([0, 1])
     NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
     SAVE_PATH: str = "model"
-    BUFFER_SIZE: int = 2 ** 16
-    RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 14
+    BUFFER_SIZE: int = 2 ** 15
+    RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 10
 
     def __init__(self, train_agent_count: int, save_path: str = "model"):
         self.__agents = [Agent(super_agent=self,
