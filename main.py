@@ -15,7 +15,7 @@ def main(agent_count: int, validation_interval: int, validation_repeats: int, sa
     runners = [Runner(env=gymnasium.make("CartPole-v1", render_mode=None), agent=agent, seed=42)
                for agent in super_agent.agents]
     for agent, random_action_minimum in zip(super_agent.agents, numpy.linspace(0, 1, len(super_agent.agents))):
-        agent.MINIMUM_RANDOM_ACTION_PROBABILITY = random_action_minimum
+        agent.minimum_random_action_probability = random_action_minimum
     best_state_dict = super_agent.state_dict()
 
     figure = matplotlib.pyplot.figure()

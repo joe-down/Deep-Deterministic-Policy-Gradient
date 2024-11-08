@@ -11,9 +11,8 @@ if typing.TYPE_CHECKING:
 
 
 class Agent(BaseAgent):
-    MINIMUM_RANDOM_ACTION_PROBABILITY: float = 1 / 100
-
-    def __init__(self, super_agent: "SuperAgent",
+    def __init__(self,
+                 super_agent: "SuperAgent",
                  observation_length: int,
                  action_length: int,
                  buffer_size: int,
@@ -26,10 +25,20 @@ class Agent(BaseAgent):
 
         self.__random_action_probability = 1
         self.__random_action_probability_decay = random_action_probability_decay
+        self.__minimum_random_action_probability = 0
 
     @property
     def random_action_probability(self) -> float:
         return self.__random_action_probability
+
+    @property
+    def minimum_random_action_probability(self) -> float:
+        return self.__minimum_random_action_probability
+
+    @minimum_random_action_probability.setter
+    def minimum_random_action_probability(self, value: float) -> None:
+        assert 0 <= value <= 1
+        self.__minimum_random_action_probability = value
 
     def action(self, observation: numpy.ndarray) -> numpy.ndarray:
         assert observation.shape == (self.__observation_length,)
@@ -45,7 +54,7 @@ class Agent(BaseAgent):
         self.__buffer.push_observation(observation=observation_action)
         self.__random_action_probability = max(self.__random_action_probability
                                                * self.__random_action_probability_decay,
-                                               self.MINIMUM_RANDOM_ACTION_PROBABILITY)
+                                               self.__minimum_random_action_probability)
         return best_action.cpu().numpy()
 
     def reward(self, reward: float, terminated: bool) -> None:
