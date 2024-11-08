@@ -5,11 +5,11 @@ from agents.base_agent import BaseAgent
 
 
 class Runner:
-    def __init__(self, env: gymnasium.Env, agent: BaseAgent) -> None:
+    def __init__(self, env: gymnasium.Env, agent: BaseAgent, seed: int) -> None:
         self.__env = env
         self.__agent = agent
         self.__observation: numpy.ndarray
-        self.__observation, info = self.__env.reset(seed=42)
+        self.__observation, info = self.__env.reset(seed=seed)
 
     def close(self) -> None:
         self.__env.close()

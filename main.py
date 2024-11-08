@@ -12,7 +12,7 @@ import tqdm
 def main(agent_count: int, plot_interval: int) -> None:
     torch.set_default_device('cuda')
     super_agent = SuperAgent(train_agent_count=agent_count)
-    runners = [Runner(env=gymnasium.make("CartPole-v1", render_mode=None), agent=agent)
+    runners = [Runner(env=gymnasium.make("CartPole-v1", render_mode=None), agent=agent, seed=42)
                for agent in super_agent.agents]
     for agent, random_action_minimum in zip(super_agent.agents, numpy.linspace(0, 1, len(super_agent.agents))):
         agent.MINIMUM_RANDOM_ACTION_PROBABILITY = random_action_minimum
@@ -22,7 +22,7 @@ def main(agent_count: int, plot_interval: int) -> None:
     losses = []
     survival_times_subplot = figure.add_subplot(2, 2, 2)
     survival_times = []
-    super_runner = Runner(env=gymnasium.make("CartPole-v1", render_mode="human"), agent=super_agent)
+    super_runner = Runner(env=gymnasium.make("CartPole-v1", render_mode="human"), agent=super_agent, seed=43)
     random_probability_subplot = figure.add_subplot(2, 2, 3)
     random_probabilities = []
     figure.show()
