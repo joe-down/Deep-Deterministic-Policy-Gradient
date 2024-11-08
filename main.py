@@ -9,9 +9,25 @@ import matplotlib.pyplot
 import tqdm
 
 
-def main(agent_count: int, validation_interval: int, validation_repeats: int, save_path: str) -> None:
+def main(agent_count: int,
+         validation_interval: int,
+         validation_repeats: int,
+         save_path: str,
+         nn_width: int,
+         discount_factor: float,
+         train_batch_size: int,
+         target_network_update_time: int,
+         buffer_size: int,
+         random_action_probability_decay: float) -> None:
     torch.set_default_device('cuda')
-    super_agent = SuperAgent(train_agent_count=agent_count, save_path=save_path)
+    super_agent = SuperAgent(train_agent_count=agent_count,
+                             save_path=save_path,
+                             nn_width=nn_width,
+                             discount_factor=discount_factor,
+                             train_batch_size=train_batch_size,
+                             target_network_update_time=target_network_update_time,
+                             buffer_size=buffer_size,
+                             random_action_probability_decay=random_action_probability_decay)
     runners = [Runner(env=gymnasium.make("CartPole-v1", render_mode=None), agent=agent, seed=42)
                for agent in super_agent.agents]
     for agent, random_action_minimum in zip(super_agent.agents, numpy.linspace(0, 1, len(super_agent.agents))):
@@ -53,4 +69,13 @@ def main(agent_count: int, validation_interval: int, validation_repeats: int, sa
 
 
 if __name__ == '__main__':
-    main(agent_count=2 ** 13, validation_interval=100, validation_repeats=10, save_path="model")
+    main(agent_count=2 ** 13,
+         validation_interval=100,
+         validation_repeats=10,
+         save_path="model",
+         nn_width=2 ** 8,
+         discount_factor=0.9,
+         train_batch_size=2 ** 12,
+         target_network_update_time=100,
+         buffer_size=2 ** 15,
+         random_action_probability_decay=1 - 1 / 2 ** 10)
