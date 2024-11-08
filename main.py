@@ -9,7 +9,7 @@ import matplotlib.pyplot
 import tqdm
 
 
-def main(agent_count: int, plot_interval: int) -> None:
+def main(agent_count: int, validation_interval: int, validation_repeats: int) -> None:
     torch.set_default_device('cuda')
     super_agent = SuperAgent(train_agent_count=agent_count)
     runners = [Runner(env=gymnasium.make("CartPole-v1", render_mode=None), agent=agent, seed=42)
@@ -22,7 +22,7 @@ def main(agent_count: int, plot_interval: int) -> None:
     losses = []
     survival_times_subplot = figure.add_subplot(2, 2, 2)
     survival_times = []
-    super_runner = Runner(env=gymnasium.make("CartPole-v1", render_mode="human"), agent=super_agent, seed=43)
+    super_runner = Runner(env=gymnasium.make("CartPole-v1", render_mode=None), agent=super_agent, seed=43)
     random_probability_subplot = figure.add_subplot(2, 2, 3)
     random_probabilities = []
     figure.show()
@@ -33,19 +33,20 @@ def main(agent_count: int, plot_interval: int) -> None:
                 runner.step()
             losses.append(super_agent.train())
 
-            if iteration % plot_interval == 0:
+            if iteration % validation_interval == 0:
                 loss_subplot.plot(losses)
-                survival_times.append(super_runner.run_full())
+                survival_times.append(numpy.mean([super_runner.run_full() for _ in range(validation_repeats)]))
                 survival_times_subplot.plot(survival_times)
                 random_probabilities.append([agent.random_action_probability for agent in super_agent.agents])
                 random_probability_subplot.plot(random_probabilities)
                 figure.canvas.draw()
                 figure.canvas.flush_events()
+                if len(survival_times) < 2 or survival_times[-1] > max(survival_times[:-1]):
+                    super_agent.save()
     except KeyboardInterrupt:
         for runner in runners:
             runner.close()
-        super_agent.save()
 
 
 if __name__ == '__main__':
-    main(agent_count=2 ** 13, plot_interval=100)
+    main(agent_count=2 ** 13, validation_interval=100, validation_repeats=10)
