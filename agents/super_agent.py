@@ -1,3 +1,5 @@
+import typing
+
 import torch
 import copy
 import numpy
@@ -21,7 +23,7 @@ class SuperAgent(BaseAgent):
     BUFFER_SIZE: int = 2 ** 15
     RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 10
 
-    def __init__(self, train_agent_count: int, save_path: str = "model"):
+    def __init__(self, train_agent_count: int, save_path: str):
         self.__agents = [Agent(super_agent=self,
                                observation_length=self.OBSERVATION_LENGTH,
                                action_length=self.ACTION_LENGTH,
@@ -78,10 +80,8 @@ class SuperAgent(BaseAgent):
         if isinstance(module, torch.nn.Linear):
             torch.nn.init.xavier_uniform_(module.weight)
 
-    def save(self) -> None:
-        if self.training:
-            torch.save(self.__neural_network.state_dict(), self.__save_path)
-            print("model saved")
+    def state_dict(self) -> dict[str, typing.Any]:
+        return self.__neural_network.state_dict()
 
     def base_action(self, observation: numpy.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
         assert observation.shape == (self.OBSERVATION_LENGTH,)

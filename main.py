@@ -9,13 +9,14 @@ import matplotlib.pyplot
 import tqdm
 
 
-def main(agent_count: int, validation_interval: int, validation_repeats: int) -> None:
+def main(agent_count: int, validation_interval: int, validation_repeats: int, save_path: str) -> None:
     torch.set_default_device('cuda')
-    super_agent = SuperAgent(train_agent_count=agent_count)
+    super_agent = SuperAgent(train_agent_count=agent_count, save_path=save_path)
     runners = [Runner(env=gymnasium.make("CartPole-v1", render_mode=None), agent=agent, seed=42)
                for agent in super_agent.agents]
     for agent, random_action_minimum in zip(super_agent.agents, numpy.linspace(0, 1, len(super_agent.agents))):
         agent.MINIMUM_RANDOM_ACTION_PROBABILITY = random_action_minimum
+    best_state_dict = super_agent.state_dict()
 
     figure = matplotlib.pyplot.figure()
     loss_subplot = figure.add_subplot(2, 2, 1)
@@ -42,11 +43,14 @@ def main(agent_count: int, validation_interval: int, validation_repeats: int) ->
                 figure.canvas.draw()
                 figure.canvas.flush_events()
                 if len(survival_times) < 2 or survival_times[-1] > max(survival_times[:-1]):
-                    super_agent.save()
+                    best_state_dict = super_agent.state_dict()
     except KeyboardInterrupt:
         for runner in runners:
             runner.close()
+        if agent_count > 0:
+            torch.save(best_state_dict, save_path)
+            print("model saved")
 
 
 if __name__ == '__main__':
-    main(agent_count=2 ** 13, validation_interval=100, validation_repeats=10)
+    main(agent_count=2 ** 13, validation_interval=100, validation_repeats=10, save_path="model")
