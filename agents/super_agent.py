@@ -18,7 +18,6 @@ class SuperAgent(BaseAgent):
     ACTION_LENGTH: int = 1
     POSSIBLE_ACTIONS = torch.tensor([0, 1])
     NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
-    SAVE_PATH: str = "model"
     BUFFER_SIZE: int = 2 ** 15
     RANDOM_ACTION_PROBABILITY_DECAY: float = 1 - 1 / 2 ** 10
 
