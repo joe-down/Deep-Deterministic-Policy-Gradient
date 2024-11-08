@@ -22,7 +22,7 @@ def main(agent_count: int, plot_interval: int) -> None:
     losses = []
     survival_times_subplot = figure.add_subplot(2, 2, 2)
     survival_times = []
-    super_runner = Runner(env=gymnasium.make("CartPole-v1", render_mode=None), agent=super_agent)
+    super_runner = Runner(env=gymnasium.make("CartPole-v1", render_mode="human"), agent=super_agent)
     random_probability_subplot = figure.add_subplot(2, 2, 3)
     random_probabilities = []
     figure.show()
