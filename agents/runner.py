@@ -15,7 +15,7 @@ class Runner:
         self.__env.close()
 
     def step(self) -> bool:
-        action = self.__agent.action(self.__observation)[0]
+        action = self.__agent.action(self.__observation).squeeze()
         self.__observation, reward, terminated, truncated, info = self.__env.step(action)
         dead = terminated or truncated
         self.__agent.reward(float(reward), terminated=dead)
