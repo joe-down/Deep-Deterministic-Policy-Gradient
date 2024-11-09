@@ -4,7 +4,7 @@ import gymnasium
 import numpy
 import torch.cuda
 from agents.super_agent import SuperAgent
-from runner import Runner
+from agents.runner import Runner
 import matplotlib.pyplot
 import tqdm
 
