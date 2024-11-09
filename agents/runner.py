@@ -8,8 +8,9 @@ class Runner:
     def __init__(self, env: gymnasium.Env, agent: BaseAgent, seed: int) -> None:
         self.__env = env
         self.__agent = agent
+        self.__seed = seed
         self.__observation: numpy.ndarray
-        self.__observation, info = self.__env.reset(seed=seed)
+        self.__observation, info = self.__env.reset(seed=self.__seed)
 
     def close(self) -> None:
         self.__env.close()
@@ -26,7 +27,7 @@ class Runner:
             return True
 
     def run_full(self) -> int:
-        self.__observation, info = self.__env.reset(seed=42)
+        self.__observation, info = self.__env.reset(seed=self.__seed)
         counter = 0
         while self.step():
             counter += 1
