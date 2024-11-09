@@ -3,7 +3,7 @@ import numpy
 
 class BaseAgent:
     def action(self, observation: numpy.ndarray) -> numpy.ndarray:
-        return
+        raise NotImplementedError
 
     def reward(self, reward: float, terminated: bool) -> None:
-        return
+        raise NotImplementedError
