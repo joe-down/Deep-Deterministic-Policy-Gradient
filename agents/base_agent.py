@@ -6,4 +6,4 @@ class BaseAgent:
         raise NotImplementedError
 
     def reward(self, reward: float, terminated: bool) -> None:
-        raise NotImplementedError
+        return

@@ -19,7 +19,10 @@ def main(train: bool,
          train_batch_size: int,
          target_network_update_time: int,
          buffer_size: int,
-         random_action_probability_decay: float) -> None:
+         random_action_probability_decay: float,
+         observation_length: int,
+         action_length: int,
+         possible_actions: torch.Tensor) -> None:
     torch.set_default_device('cuda')
     super_agent = SuperAgent(train_agent_count=agent_count if train else 0,
                              save_path=save_path,
@@ -28,7 +31,10 @@ def main(train: bool,
                              train_batch_size=train_batch_size,
                              target_network_update_time=target_network_update_time,
                              buffer_size=buffer_size,
-                             random_action_probability_decay=random_action_probability_decay)
+                             random_action_probability_decay=random_action_probability_decay,
+                             observation_length=observation_length,
+                             action_length=action_length,
+                             possible_actions=possible_actions)
     super_runner = Runner(env=gymnasium.make("CartPole-v1", render_mode=None if train else "human"),
                           agent=super_agent,
                           seed=43)
@@ -91,4 +97,7 @@ if __name__ == '__main__':
          train_batch_size=2 ** 12,
          target_network_update_time=100,
          buffer_size=2 ** 15,
-         random_action_probability_decay=1 - 1 / 2 ** 10)
+         random_action_probability_decay=1 - 1 / 2 ** 10,
+         observation_length=4,
+         action_length=1,
+         possible_actions=torch.tensor([0, 1]))

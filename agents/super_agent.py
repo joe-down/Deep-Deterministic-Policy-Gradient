@@ -10,11 +10,6 @@ from agents.base_agent import BaseAgent
 
 
 class SuperAgent(BaseAgent):
-    OBSERVATION_LENGTH: int = 4
-    ACTION_LENGTH: int = 1
-    POSSIBLE_ACTIONS = torch.tensor([0, 1])
-    NN_INPUT: int = OBSERVATION_LENGTH + ACTION_LENGTH
-
     def __init__(self,
                  train_agent_count: int,
                  save_path: str,
@@ -23,21 +18,27 @@ class SuperAgent(BaseAgent):
                  train_batch_size: int,
                  target_network_update_time: int,
                  buffer_size: int,
-                 random_action_probability_decay: float) -> None:
+                 random_action_probability_decay: float,
+                 observation_length: int,
+                 action_length: int,
+                 possible_actions: torch.Tensor) -> None:
+        self.__observation_length = observation_length
+        self.__action_length = action_length
         self.__agents = [Agent(super_agent=self,
-                               observation_length=self.OBSERVATION_LENGTH,
-                               action_length=self.ACTION_LENGTH,
+                               observation_length=self.__observation_length,
+                               action_length=self.__action_length,
                                buffer_size=buffer_size,
                                random_action_probability_decay=random_action_probability_decay)
                          for _ in range(train_agent_count)]
         self.__save_path = save_path
         self.__nn_width = nn_width
+        self.__nn_input = self.__observation_length + self.__action_length
         self.__discount_factor = discount_factor
         self.__train_batch_size = train_batch_size
         self.__target_network_update_time = target_network_update_time
 
         self.__neural_network: torch.nn.Sequential = torch.nn.Sequential(
-            torch.nn.Linear(self.NN_INPUT, self.__nn_width),
+            torch.nn.Linear(self.__nn_input, self.__nn_width),
             torch.nn.ReLU(),
             torch.nn.Linear(self.__nn_width, self.__nn_width),
             torch.nn.ReLU(),
@@ -58,14 +59,14 @@ class SuperAgent(BaseAgent):
         self.loss_function: torch.nn.MSELoss = torch.nn.MSELoss()
 
         # Action spaces
-        combinations = itertools.combinations_with_replacement(self.POSSIBLE_ACTIONS, self.ACTION_LENGTH)
+        combinations = itertools.combinations_with_replacement(possible_actions, self.__action_length)
         permutations = (torch.tensor(tuple(itertools.permutations(combination))).unique(dim=0)
                         for combination in combinations)
         self.__action_space = torch.concatenate(tuple(permutations), dim=0)
-        assert self.__action_space.dim() == 2 and self.__action_space.shape[1] == self.ACTION_LENGTH
+        assert self.__action_space.dim() == 2 and self.__action_space.shape[1] == self.__action_length
         self.train_action_space: torch.tensor = self.__action_space.repeat(self.__train_batch_size, 1, 1)
         assert self.train_action_space.shape == (
-            self.__train_batch_size, self.__action_space.shape[0], self.ACTION_LENGTH)
+            self.__train_batch_size, self.__action_space.shape[0], self.__action_length)
 
     @property
     def agents(self) -> list[Agent]:
@@ -88,7 +89,7 @@ class SuperAgent(BaseAgent):
         return self.__neural_network.state_dict()
 
     def base_action(self, observation: numpy.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
-        assert observation.shape == (self.OBSERVATION_LENGTH,)
+        assert observation.shape == (self.__observation_length,)
         observation = torch.tensor(observation)
 
         observation_actions = torch.concatenate((observation.repeat(self.action_space.shape[0], 1), self.action_space),
@@ -97,8 +98,8 @@ class SuperAgent(BaseAgent):
         best_action = self.action_space[best_expected_reward_action_index]
         observation_action = observation_actions[best_expected_reward_action_index]
 
-        assert observation_action.shape == (self.NN_INPUT,)
-        assert best_action.shape == (self.ACTION_LENGTH,)
+        assert observation_action.shape == (self.__nn_input,)
+        assert best_action.shape == (self.__action_length,)
         assert min(best_action) >= -1
         assert max(best_action) <= 1
         return best_action, observation_action
@@ -128,14 +129,14 @@ class SuperAgent(BaseAgent):
             immediate_rewards = torch.concatenate((immediate_rewards, current_immediate_rewards))
             terminations = torch.concatenate((terminations, current_terminations))
 
-        next_observations = next_observation_actions[:, :-self.ACTION_LENGTH]
-        assert next_observations.shape == (self.__train_batch_size, self.OBSERVATION_LENGTH)
+        next_observations = next_observation_actions[:, :-self.__action_length]
+        assert next_observations.shape == (self.__train_batch_size, self.__observation_length)
         a = next_observations.unsqueeze(1).repeat(1, self.train_action_space.shape[1], 1)
-        assert a.shape == (self.__train_batch_size, self.train_action_space.shape[1], self.OBSERVATION_LENGTH)
+        assert a.shape == (self.__train_batch_size, self.train_action_space.shape[1], self.__observation_length)
         b = torch.concatenate((a, self.train_action_space), 2)
-        assert b.shape == (self.__train_batch_size, self.train_action_space.shape[1], self.NN_INPUT)
+        assert b.shape == (self.__train_batch_size, self.train_action_space.shape[1], self.__nn_input)
         b_flat = b.flatten(0, 1)
-        assert b_flat.shape == (self.__train_batch_size * self.train_action_space.shape[1], self.NN_INPUT)
+        assert b_flat.shape == (self.__train_batch_size * self.train_action_space.shape[1], self.__nn_input)
         b_2 = self.__neural_network(b_flat)
         assert b_2.shape == (self.__train_batch_size * self.train_action_space.shape[1], 1)
         c = b_2.unflatten(0, b.shape[:2])
@@ -143,9 +144,9 @@ class SuperAgent(BaseAgent):
         best_next_action_indexes = c.argmax(1).squeeze(1)
         assert best_next_action_indexes.shape == (self.__train_batch_size,)
         best_next_actions = self.action_space[best_next_action_indexes]
-        assert best_next_actions.shape == (self.__train_batch_size, self.ACTION_LENGTH)
+        assert best_next_actions.shape == (self.__train_batch_size, self.__action_length)
         best_next_observation_actions = torch.concatenate((next_observations, best_next_actions), dim=1)
-        assert best_next_observation_actions.shape == (self.__train_batch_size, self.NN_INPUT)
+        assert best_next_observation_actions.shape == (self.__train_batch_size, self.__nn_input)
         # Learn
         target = (immediate_rewards + self.__discount_factor * (1 - terminations)
                   * self.__target_neural_network(best_next_observation_actions))
