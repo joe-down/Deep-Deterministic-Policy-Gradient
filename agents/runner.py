@@ -18,7 +18,7 @@ class Runner:
         action = self.__agent.action(self.__observation)[0]
         self.__observation, reward, terminated, truncated, info = self.__env.step(action)
         dead = terminated or truncated
-        self.__agent.reward(-100 if dead else float(reward), terminated=dead)
+        self.__agent.reward(float(reward), terminated=dead)
         if dead:
             self.__observation, info = self.__env.reset()
             return False
