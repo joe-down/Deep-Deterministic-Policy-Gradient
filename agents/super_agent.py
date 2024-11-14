@@ -13,7 +13,8 @@ class SuperAgent(BaseAgent):
     def __init__(self,
                  train_agent_count: int,
                  save_path: str,
-                 nn_width: int,
+                 actor_nn_width: int,
+                 critic_nn_width: int,
                  discount_factor: float,
                  train_batch_size: int,
                  buffer_size: int,
@@ -34,11 +35,11 @@ class SuperAgent(BaseAgent):
         self.__critic = Critic(load_path=save_path,
                                observation_length=observation_length,
                                action_length=action_length,
-                               nn_width=nn_width)
+                               nn_width=critic_nn_width)
         self.__actor = Actor(load_path=save_path,
                              observation_length=observation_length,
                              action_length=action_length,
-                             nn_width=nn_width)
+                             nn_width=actor_nn_width)
 
     @property
     def agents(self) -> list[Agent]:

@@ -14,7 +14,8 @@ def run(train: bool,
         validation_interval: int,
         validation_repeats: int,
         save_path: str,
-        nn_width: int,
+        actor_nn_width: int,
+        critic_nn_width: int,
         discount_factor: float,
         train_batch_size: int,
         buffer_size: int,
@@ -26,7 +27,8 @@ def run(train: bool,
     torch.set_default_device('cuda')
     super_agent = SuperAgent(train_agent_count=agent_count if train else 0,
                              save_path=save_path,
-                             nn_width=nn_width,
+                             actor_nn_width=actor_nn_width,
+                             critic_nn_width=critic_nn_width,
                              discount_factor=discount_factor,
                              train_batch_size=train_batch_size,
                              buffer_size=buffer_size,
@@ -97,7 +99,8 @@ def main(selection: str, train: bool) -> None:
             validation_interval = 10
             validation_repeats = 100
             save_path = "model-cartpole"
-            nn_width = 2 ** 7
+            actor_nn_width = 2 ** 7
+            critic_nn_width = 2 ** 7
             discount_factor = 0.9
             train_batch_size = 2 ** 13
             buffer_size = 2 ** 24
@@ -111,7 +114,8 @@ def main(selection: str, train: bool) -> None:
             validation_interval = 1000
             validation_repeats = 10
             save_path = "model-bipedal"
-            nn_width = 2 ** 9
+            actor_nn_width = 2 ** 9
+            critic_nn_width = 2 ** 9
             discount_factor = 0.9
             train_batch_size = 2 ** 4
             buffer_size = 2 ** 15
@@ -127,7 +131,8 @@ def main(selection: str, train: bool) -> None:
         validation_interval=validation_interval,
         validation_repeats=validation_repeats,
         save_path=save_path,
-        nn_width=nn_width,
+        actor_nn_width=actor_nn_width,
+        critic_nn_width=critic_nn_width,
         discount_factor=discount_factor,
         train_batch_size=train_batch_size,
         buffer_size=buffer_size,
