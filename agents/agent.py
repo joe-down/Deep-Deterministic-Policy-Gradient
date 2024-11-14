@@ -46,7 +46,7 @@ class Agent(BaseAgent):
         if torch.rand(1) > self.__random_action_probability:
             best_action, observation_action = self.__super_agent.base_action(observation=observation)
         else:
-            best_action = self.__super_agent.action_space[torch.randint(0, len(self.__super_agent.action_space), ())]
+            best_action = torch.rand((self.__action_length,))
             observation_action = torch.concatenate((torch.tensor(observation), best_action))
 
         assert best_action.shape == (self.__action_length,)
