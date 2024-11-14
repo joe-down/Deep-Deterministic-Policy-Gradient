@@ -95,13 +95,12 @@ def main(selection: str, train: bool) -> None:
         case 'cartpole':
             agent_count = 2 ** 4
             validation_interval = 10
-            validation_repeats = 10
+            validation_repeats = 1000
             save_path = "model-cartpole"
-            #nn_width = 2 ** 7
-            nn_width = 2 ** 6
+            nn_width = 2 ** 7
             discount_factor = 0.9
             train_batch_size = 2 ** 13
-            buffer_size = 2 ** 25
+            buffer_size = 2 ** 24
             random_action_probability_decay = 1 - 1 / 2 ** 10
             environment = "CartPole-v1"
             observation_length = 4
