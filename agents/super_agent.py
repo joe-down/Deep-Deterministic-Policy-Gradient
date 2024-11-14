@@ -48,8 +48,8 @@ class SuperAgent(BaseAgent):
     def training(self) -> bool:
         return len(self.__agents) > 0
 
-    def state_dicts(self) -> tuple[dict[str, typing.Any], dict[str, typing.Any]]:
-        return self.__critic.state_dict(), self.__actor.state_dict()
+    def state_dicts(self) -> tuple[tuple[dict[str, typing.Any], dict[str, typing.Any]], dict[str, typing.Any]]:
+        return self.__critic.state_dicts, self.__actor.state_dict
 
     def base_action(self, observation: numpy.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
         observation = torch.tensor(observation)
@@ -96,6 +96,5 @@ class SuperAgent(BaseAgent):
         loss_2 = self.__actor.update(observations=observation_actions[:, :-self.__action_length], critic=self.__critic)
 
         # Update target networks
-        self.__critic.update_target_network(target_update_proportion=self.__target_update_proportion)
         self.__actor.update_target_network(target_update_proportion=self.__target_update_proportion)
         return float(loss_1), float(loss_2)

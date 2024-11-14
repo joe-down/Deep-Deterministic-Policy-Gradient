@@ -84,7 +84,8 @@ def run(train: bool,
             for runner in runners:
                 runner.close()
             super_runner.close()
-            torch.save(best_state_dicts[0], save_path + "-q")
+            torch.save(best_state_dicts[0][0], save_path + "-q1")
+            torch.save(best_state_dicts[0][1], save_path + "-q2")
             torch.save(best_state_dicts[1], save_path + "-action")
             print("models saved")
 
