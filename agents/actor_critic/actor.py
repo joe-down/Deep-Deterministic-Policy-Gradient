@@ -1,5 +1,6 @@
 import torch
 import typing
+import copy
 from agents.actor_critic.actor_critic_base import ActorCriticBase
 
 if typing.TYPE_CHECKING:
@@ -8,24 +9,36 @@ if typing.TYPE_CHECKING:
 
 class Actor(ActorCriticBase):
     def __init__(self, load_path: str, observation_length: int, action_length: int, nn_width: int) -> None:
-        self.__nn_width = nn_width
-        super().__init__(load_path=load_path + "-action", neural_network=torch.nn.Sequential(
-            torch.nn.Linear(observation_length, self.__nn_width),
+        neural_network = torch.nn.Sequential(
+            torch.nn.Linear(observation_length, nn_width),
             torch.nn.ReLU(),
-            torch.nn.Linear(self.__nn_width, self.__nn_width),
+            torch.nn.Linear(nn_width, nn_width),
             torch.nn.ReLU(),
-            torch.nn.Linear(self.__nn_width, self.__nn_width),
+            torch.nn.Linear(nn_width, nn_width),
             torch.nn.ReLU(),
-            torch.nn.Linear(self.__nn_width, action_length),
-            torch.nn.Sigmoid()
-        ))
-        self.__optimiser: torch.optim.Optimizer = torch.optim.Adam(params=self._neural_network_parameters)
+            torch.nn.Linear(nn_width, action_length),
+            torch.nn.Sigmoid(),
+        )
+        super().__init__(load_path=load_path + "-action", neural_network=neural_network)
+        self.__optimiser: torch.optim.Optimizer = torch.optim.Adam(params=self._parameters)
+        self.__target_neural_network = copy.deepcopy(neural_network)
+        self.__update_target_network(target_update_proportion=1)
 
-    def update(self, observations: torch.Tensor, critic: "Critic") -> float:
+    def forward_target_network(self, observations: torch.Tensor) -> torch.Tensor:
+        return self.__target_neural_network(observations)
+
+    def update(self, observations: torch.Tensor, target_update_proportion: float, critic: "Critic") -> float:
         best_actions = self.forward_network(observations)
         best_observation_actions = torch.concatenate((observations, best_actions), dim=1)
         self.__optimiser.zero_grad()
         loss = (-critic.forward_network(best_observation_actions)).mean()
         loss.backward()
         self.__optimiser.step()
+        self.__update_target_network(target_update_proportion=target_update_proportion)
         return float(loss)
+
+    def __update_target_network(self, target_update_proportion: float):
+        assert 0 <= target_update_proportion <= 1
+        for parameter, target_parameter in zip(self._parameters, self.__target_neural_network.parameters()):
+            target_parameter.data = ((1 - target_update_proportion) * target_parameter.data
+                                     + target_update_proportion * parameter.data)

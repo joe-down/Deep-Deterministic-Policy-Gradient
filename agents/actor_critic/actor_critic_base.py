@@ -1,5 +1,4 @@
 import torch
-import copy
 import typing
 
 
@@ -12,10 +11,9 @@ class ActorCriticBase:
         except FileNotFoundError:
             self.__neural_network.apply(self.__neural_network_initialisation)
             print("model initialised")
-        self.__target_neural_network = copy.deepcopy(self.__neural_network)
 
     @property
-    def _neural_network_parameters(self) -> typing.Iterator[torch.nn.Parameter]:
+    def _parameters(self) -> typing.Iterator[torch.nn.Parameter]:
         return self.__neural_network.parameters()
 
     @property
@@ -27,14 +25,5 @@ class ActorCriticBase:
         if isinstance(module, torch.nn.Linear):
             torch.nn.init.xavier_uniform_(module.weight)
 
-    def update_target_network(self, target_update_proportion: float) -> None:
-        for parameter, target_parameter in zip(self.__neural_network.parameters(),
-                                               self.__target_neural_network.parameters()):
-            target_parameter.data = ((1 - target_update_proportion) * target_parameter.data
-                                     + target_update_proportion * parameter.data)
-
     def forward_network(self, observations: torch.Tensor) -> torch.Tensor:
         return self.__neural_network(observations)
-
-    def forward_target_network(self, observations: torch.Tensor) -> torch.Tensor:
-        return self.__target_neural_network(observations)

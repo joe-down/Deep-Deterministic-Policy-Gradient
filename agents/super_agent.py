@@ -93,8 +93,7 @@ class SuperAgent(BaseAgent):
                                       next_observations=next_observation_actions[:, :-self.__action_length],
                                       discount_factor=self.__discount_factor,
                                       actor=self.__actor)
-        loss_2 = self.__actor.update(observations=observation_actions[:, :-self.__action_length], critic=self.__critic)
-
-        # Update target networks
-        self.__actor.update_target_network(target_update_proportion=self.__target_update_proportion)
+        loss_2 = self.__actor.update(observations=observation_actions[:, :-self.__action_length],
+                                     target_update_proportion=self.__target_update_proportion,
+                                     critic=self.__critic)
         return float(loss_1), float(loss_2)
