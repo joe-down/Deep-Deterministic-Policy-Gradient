@@ -16,7 +16,7 @@ class Runner:
         self.__env.close()
 
     def step(self) -> bool:
-        action = self.__agent.action(self.__observation).squeeze()
+        action = numpy.rint(self.__agent.action(self.__observation).squeeze()).astype(numpy.integer)
         self.__observation, reward, terminated, truncated, info = self.__env.step(action)
         dead = terminated or truncated
         self.__agent.reward(float(reward), terminated=dead)
@@ -27,13 +27,13 @@ class Runner:
             return True
 
     def run_full(self) -> float:
-        observation, info = self.__env.reset(seed=self.__seed)
+        observation, info = self.__env.reset()
         accumulated_reward = 0
         dead = False
         while not dead:
-            action = self.__agent.action(observation).squeeze()
+            action = numpy.rint(self.__agent.action(observation).squeeze()).astype(numpy.integer)
             observation, reward, terminated, truncated, info = self.__env.step(action)
             accumulated_reward += reward
             dead = terminated or truncated
-        self.__observation, info = self.__env.reset(seed=self.__seed)
+        self.__observation, info = self.__env.reset()
         return float(accumulated_reward)
