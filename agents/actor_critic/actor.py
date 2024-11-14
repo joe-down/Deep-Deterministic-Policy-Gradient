@@ -1,8 +1,8 @@
 import torch
 import typing
-from agents.actor_critic_base import ActorCriticBase
+from agents.actor_critic.actor_critic_base import ActorCriticBase
 if typing.TYPE_CHECKING:
-    from agents.critic import Critic
+    from agents.actor_critic.critic import Critic
 
 
 class Actor(ActorCriticBase):

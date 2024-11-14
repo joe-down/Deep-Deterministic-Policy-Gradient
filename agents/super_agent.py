@@ -3,10 +3,10 @@ import typing
 import torch
 import numpy
 
-from agents.actor import Actor
+from agents.actor_critic.actor import Actor
 from agents.agent import Agent
 from agents.base_agent import BaseAgent
-from agents.critic import Critic
+from agents.actor_critic.critic import Critic
 
 
 class SuperAgent(BaseAgent):
