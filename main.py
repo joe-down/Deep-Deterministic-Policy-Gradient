@@ -95,7 +95,7 @@ def main(selection: str, train: bool) -> None:
         case 'cartpole':
             agent_count = 2 ** 4
             validation_interval = 10
-            validation_repeats = 1000
+            validation_repeats = 100
             save_path = "model-cartpole"
             nn_width = 2 ** 7
             discount_factor = 0.9
