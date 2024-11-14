@@ -33,14 +33,13 @@ class Critic:
                next_observations: torch.Tensor,
                discount_factor: float,
                actor: "Actor") -> float:
-        best_next_actions = actor.forward_target_network(observations=next_observations).detach()
-        best_next_observation_actions = torch.concatenate((next_observations, best_next_actions), dim=1)
-        target = (immediate_rewards + discount_factor * (1 - terminations)
-                  * self.__critics[not self.__q1_main].forward_network(best_next_observation_actions))
-        prediction = self.__critics[self.__q1_main].forward_network(observation_actions)
-        self.__critics[self.__q1_main].optimiser.zero_grad()
-        loss = self.__loss_function(target, prediction)
-        loss.backward()
-        self.__critics[self.__q1_main].optimiser.step()
+        loss = self.__critics[self.__q1_main].update(observation_actions=observation_actions,
+                                                     immediate_rewards=immediate_rewards,
+                                                     terminations=terminations,
+                                                     next_observations=next_observations,
+                                                     discount_factor=discount_factor,
+                                                     loss_function=self.__loss_function,
+                                                     other_critic=self.__critics[not self.__q1_main],
+                                                     actor=actor)
         self.__q1_main = not self.__q1_main
         return float(loss)
