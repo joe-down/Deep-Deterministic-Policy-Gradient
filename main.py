@@ -64,12 +64,6 @@ def run(train: bool,
 
         try:
             for iteration in tqdm.tqdm(itertools.count()):
-                for runner in runners:
-                    runner.step()
-                q_loss, action_loss = super_agent.train()
-                losses.append(q_loss)
-                action_losses.append(action_loss)
-
                 if iteration % validation_interval == 0:
                     loss_subplot.plot(losses)
                     action_loss_subplot.plot(action_losses)
@@ -81,6 +75,11 @@ def run(train: bool,
                     figure.canvas.flush_events()
                     if len(survival_times) < 2 or survival_times[-1] >= max(survival_times[:-1]):
                         best_state_dicts = super_agent.state_dicts()
+                for runner in runners:
+                    runner.step()
+                q_loss, action_loss = super_agent.train()
+                losses.append(q_loss)
+                action_losses.append(action_loss)
         except KeyboardInterrupt:
             for runner in runners:
                 runner.close()
