@@ -3,10 +3,98 @@ import itertools
 import gymnasium
 import numpy
 import torch.cuda
+
+from agents.actor_critic.actor import Actor
+from agents.basic_agent import BasicAgent
 from agents.super_agent import SuperAgent
 from agents.runner import Runner
 import matplotlib.pyplot
 import tqdm
+
+
+def validation_run(load_path: str, observation_length: int, action_length: int, nn_width: int, runner: Runner) -> None:
+    actor = Actor(load_path=load_path,
+                  observation_length=observation_length,
+                  action_length=action_length,
+                  nn_width=nn_width)
+    try:
+        while True:
+            print(runner.run_full(actor=actor))
+    except KeyboardInterrupt:
+        return
+
+
+def train_run(
+        agent_count: int,
+        validation_interval: int,
+        validation_repeats: int,
+        save_path: str,
+        actor_nn_width: int,
+        critic_nn_width: int,
+        discount_factor: float,
+        train_batch_size: int,
+        buffer_size: int,
+        random_action_probability: float,
+        minimum_random_action_probability: float,
+        random_action_probability_decay: float,
+        observation_length: int,
+        action_length: int,
+        environment: str,
+        seed: int,
+        target_update_proportion: float,
+        validation_runner: Runner,
+) -> None:
+    super_agent = SuperAgent(train_agent_count=agent_count,
+                             save_path=save_path,
+                             environment=environment,
+                             seed=seed,
+                             actor_nn_width=actor_nn_width,
+                             critic_nn_width=critic_nn_width,
+                             discount_factor=discount_factor,
+                             train_batch_size=train_batch_size,
+                             buffer_size=buffer_size,
+                             random_action_probability=random_action_probability,
+                             minimum_random_action_probability=minimum_random_action_probability,
+                             random_action_probability_decay=random_action_probability_decay,
+                             observation_length=observation_length,
+                             action_length=action_length,
+                             target_update_proportion=target_update_proportion,
+                             )
+    best_state_dicts = super_agent.state_dicts
+    figure = matplotlib.pyplot.figure()
+    loss_subplot = figure.add_subplot(2, 2, 1)
+    losses = []
+    action_loss_subplot = figure.add_subplot(2, 2, 2)
+    action_losses = []
+    survival_times_subplot = figure.add_subplot(2, 2, 3)
+    survival_times = []
+    random_probability_subplot = figure.add_subplot(2, 2, 4)
+    random_probabilities = []
+    figure.show()
+    try:
+        for iteration in tqdm.tqdm(itertools.count()):
+            if iteration % validation_interval == 0:
+                loss_subplot.plot(losses)
+                action_loss_subplot.plot(action_losses)
+                survival_times.append(numpy.mean([validation_runner.run_full(super_agent.actor)
+                                                  for _ in range(validation_repeats)]))
+                survival_times_subplot.plot(survival_times)
+                random_probabilities.append(super_agent.random_action_probabilities)
+                random_probability_subplot.plot(random_probabilities)
+                figure.canvas.draw()
+                figure.canvas.flush_events()
+                if len(survival_times) < 2 or survival_times[-1] >= max(survival_times[:-1]):
+                    best_state_dicts = super_agent.state_dicts
+            super_agent.step()
+            q_loss, action_loss = super_agent.train()
+            losses.append(q_loss)
+            action_losses.append(action_loss)
+    except KeyboardInterrupt:
+        super_agent.close()
+        torch.save(best_state_dicts[0][0], save_path + "-q1")
+        torch.save(best_state_dicts[0][1], save_path + "-q2")
+        torch.save(best_state_dicts[1], save_path + "-action")
+        print("models saved")
 
 
 def run(train: bool,
@@ -19,80 +107,56 @@ def run(train: bool,
         discount_factor: float,
         train_batch_size: int,
         buffer_size: int,
+        random_action_probability: float,
+        minimum_random_action_probability: float,
         random_action_probability_decay: float,
         observation_length: int,
         action_length: int,
         environment: str,
+        seed: int,
         target_update_proportion: float) -> None:
     torch.set_default_device('cuda')
-    super_agent = SuperAgent(train_agent_count=agent_count if train else 0,
-                             save_path=save_path,
-                             actor_nn_width=actor_nn_width,
-                             critic_nn_width=critic_nn_width,
-                             discount_factor=discount_factor,
-                             train_batch_size=train_batch_size,
-                             buffer_size=buffer_size,
-                             random_action_probability_decay=random_action_probability_decay,
-                             observation_length=observation_length,
-                             action_length=action_length,
-                             target_update_proportion=target_update_proportion)
-    super_runner = Runner(env=gymnasium.make(environment, render_mode=None if train else "human"),
-                          agent=super_agent,
-                          seed=43)
-    if not train:
-        try:
-            while True:
-                print(super_runner.run_full())
-        except KeyboardInterrupt:
-            super_runner.close()
-            return
+    validation_runner = Runner(
+        env=gymnasium.make(environment, render_mode=None if train else "human"),
+        agent=BasicAgent(),
+        seed=seed,
+    )
+    if train:
+        train_run(
+            agent_count=agent_count,
+            validation_interval=validation_interval,
+            validation_repeats=validation_repeats,
+            save_path=save_path,
+            actor_nn_width=actor_nn_width,
+            critic_nn_width=critic_nn_width,
+            discount_factor=discount_factor,
+            train_batch_size=train_batch_size,
+            buffer_size=buffer_size,
+            random_action_probability=random_action_probability,
+            minimum_random_action_probability=minimum_random_action_probability,
+            random_action_probability_decay=random_action_probability_decay,
+            observation_length=observation_length,
+            action_length=action_length,
+            environment=environment,
+            seed=seed + 1,
+            target_update_proportion=target_update_proportion,
+            validation_runner=validation_runner,
+        )
     else:
-        runners = [Runner(env=gymnasium.make(environment, render_mode=None), agent=agent, seed=42)
-                   for agent in super_agent.agents]
-        for agent, random_action_minimum in zip(super_agent.agents, numpy.linspace(0, 1, len(super_agent.agents))):
-            agent.minimum_random_action_probability = random_action_minimum
-        best_state_dicts = super_agent.state_dicts()
-
-        figure = matplotlib.pyplot.figure()
-        loss_subplot = figure.add_subplot(2, 2, 1)
-        losses = []
-        action_loss_subplot = figure.add_subplot(2, 2, 2)
-        action_losses = []
-        survival_times_subplot = figure.add_subplot(2, 2, 3)
-        survival_times = []
-        random_probability_subplot = figure.add_subplot(2, 2, 4)
-        random_probabilities = []
-        figure.show()
-
-        try:
-            for iteration in tqdm.tqdm(itertools.count()):
-                if iteration % validation_interval == 0:
-                    loss_subplot.plot(losses)
-                    action_loss_subplot.plot(action_losses)
-                    survival_times.append(numpy.mean([super_runner.run_full() for _ in range(validation_repeats)]))
-                    survival_times_subplot.plot(survival_times)
-                    random_probabilities.append([agent.random_action_probability for agent in super_agent.agents])
-                    random_probability_subplot.plot(random_probabilities)
-                    figure.canvas.draw()
-                    figure.canvas.flush_events()
-                    if len(survival_times) < 2 or survival_times[-1] >= max(survival_times[:-1]):
-                        best_state_dicts = super_agent.state_dicts()
-                for runner in runners:
-                    runner.step()
-                q_loss, action_loss = super_agent.train()
-                losses.append(q_loss)
-                action_losses.append(action_loss)
-        except KeyboardInterrupt:
-            for runner in runners:
-                runner.close()
-            super_runner.close()
-            torch.save(best_state_dicts[0][0], save_path + "-q1")
-            torch.save(best_state_dicts[0][1], save_path + "-q2")
-            torch.save(best_state_dicts[1], save_path + "-action")
-            print("models saved")
+        validation_run(
+            load_path=save_path,
+            observation_length=observation_length,
+            action_length=action_length,
+            nn_width=actor_nn_width,
+            runner=validation_runner,
+        )
+    validation_runner.close()
 
 
 def main(selection: str, train: bool) -> None:
+    random_action_probability = 1
+    minimum_random_action_probability = 0.1
+    seed = 42
     match selection:
         case 'cartpole':
             environment = "CartPole-v1"
@@ -137,12 +201,15 @@ def main(selection: str, train: bool) -> None:
         discount_factor=discount_factor,
         train_batch_size=train_batch_size,
         buffer_size=buffer_size,
+        random_action_probability=random_action_probability,
+        minimum_random_action_probability=minimum_random_action_probability,
         random_action_probability_decay=random_action_probability_decay,
         environment=environment,
+        seed=seed,
         observation_length=observation_length,
         action_length=action_length,
         target_update_proportion=target_update_proportion)
 
 
 if __name__ == '__main__':
-    main(selection='cartpole', train=False)
+    main(selection='cartpole', train=True)
