@@ -95,20 +95,21 @@ def run(train: bool,
 def main(selection: str, train: bool) -> None:
     match selection:
         case 'cartpole':
-            agent_count = 2 ** 4
-            validation_interval = 10
-            validation_repeats = 100
-            save_path = "model-cartpole"
-            actor_nn_width = 2 ** 7
-            critic_nn_width = 2 ** 7
-            discount_factor = 0.9
-            train_batch_size = 2 ** 13
-            buffer_size = 2 ** 24
-            random_action_probability_decay = 1 - 1 / 2 ** 10
             environment = "CartPole-v1"
             observation_length = 4
             action_length = 1
-            target_update_proportion = 2 ** -1
+            save_path = "model-cartpole"
+            validation_interval = 100
+            validation_repeats = 100
+            buffer_size = 2 ** 8
+            #
+            discount_factor = 0.9
+            agent_count = 2 ** 7
+            random_action_probability_decay = 1 - 1 / 2 ** 10
+            train_batch_size = 2 ** 6
+            actor_nn_width = 2 ** 4
+            critic_nn_width = 2 ** 4
+            target_update_proportion = 2 ** 0
         case 'bipedal':
             agent_count = 2 ** 5
             validation_interval = 1000
@@ -144,4 +145,4 @@ def main(selection: str, train: bool) -> None:
 
 
 if __name__ == '__main__':
-    main(selection='cartpole', train=True)
+    main(selection='cartpole', train=False)
