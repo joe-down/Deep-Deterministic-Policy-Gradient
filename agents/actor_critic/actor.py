@@ -20,7 +20,7 @@ class Actor(ActorCriticBase):
             torch.nn.Sigmoid(),
         )
         super().__init__(load_path=load_path + "-action", neural_network=neural_network)
-        self.__optimiser: torch.optim.Optimizer = torch.optim.Adam(params=self._parameters)
+        self.__optimiser: torch.optim.Optimizer = torch.optim.AdamW(params=self._parameters)
         self.__target_neural_network = copy.deepcopy(neural_network)
         self.__update_target_network(target_update_proportion=1)
 

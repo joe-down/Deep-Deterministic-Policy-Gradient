@@ -16,7 +16,7 @@ class SubCritic(ActorCriticBase):
                              torch.nn.ReLU(),
                              torch.nn.Linear(nn_width, 1),
                          ))
-        self.__optimiser = torch.optim.Adam(params=self._parameters)
+        self.__optimiser = torch.optim.AdamW(params=self._parameters)
 
     def update(self,
                observation_actions: torch.Tensor,
