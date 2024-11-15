@@ -154,6 +154,7 @@ def run(train: bool,
 
 
 def main(selection: str, train: bool) -> None:
+    model_root = "models/"
     random_action_probability = 1
     minimum_random_action_probability = 0.1
     seed = 42
@@ -195,7 +196,7 @@ def main(selection: str, train: bool) -> None:
         agent_count=agent_count,
         validation_interval=validation_interval,
         validation_repeats=validation_repeats,
-        save_path=save_path,
+        save_path=model_root + save_path,
         actor_nn_width=actor_nn_width,
         critic_nn_width=critic_nn_width,
         discount_factor=discount_factor,
