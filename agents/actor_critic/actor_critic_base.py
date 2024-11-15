@@ -23,7 +23,7 @@ class ActorCriticBase:
         return self.__neural_network.state_dict()
 
     @staticmethod
-    def __neural_network_initialisation(module) -> None:
+    def __neural_network_initialisation(module: torch.nn.Module) -> None:
         if isinstance(module, torch.nn.Linear):
             torch.nn.init.xavier_uniform_(module.weight)
 
