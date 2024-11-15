@@ -17,6 +17,10 @@ class Buffer:
 
         self.entry_count: int = 0
 
+    @property
+    def buffer_observations_ready(self) -> bool:
+        return self.entry_count >= 2 and self.next_observation_index == self.next_reward_termination_index
+
     def push_observation(self, observation: torch.tensor) -> None:
         assert observation.shape == (self.nn_input_length,)
         assert self.next_observation_index == self.next_reward_termination_index
@@ -35,14 +39,11 @@ class Buffer:
         self.entry_count = self.next_observation_index if self.entry_count < self.next_observation_index \
             else self.__buffer_size
 
-    def buffer_observations_ready(self) -> bool:
-        return self.entry_count >= 2 and self.next_observation_index == self.next_reward_termination_index
-
     def filled(self) -> bool:
         return self.entry_count == self.__buffer_size
 
     def random_observations(self, number: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        assert self.buffer_observations_ready()
+        assert self.buffer_observations_ready
         valid_indexes = torch.tensor([i for i in range(self.entry_count) if i != self.next_observation_index])
         indexes = valid_indexes[torch.randint(0, self.entry_count - 1, (number,))]
         states, next_states, rewards, terminations = (self.observations[indexes],
