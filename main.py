@@ -1,4 +1,5 @@
 import itertools
+import pathlib
 
 import gymnasium
 import numpy
@@ -12,7 +13,13 @@ import matplotlib.pyplot
 import tqdm
 
 
-def validation_run(load_path: str, observation_length: int, action_length: int, nn_width: int, runner: Runner) -> None:
+def validation_run(
+        load_path: pathlib.Path,
+        observation_length: int,
+        action_length: int,
+        nn_width: int,
+        runner: Runner,
+) -> None:
     actor = Actor(load_path=load_path,
                   observation_length=observation_length,
                   action_length=action_length,
@@ -28,7 +35,7 @@ def train_run(
         agent_count: int,
         validation_interval: int,
         validation_repeats: int,
-        save_path: str,
+        save_path: pathlib.Path,
         actor_nn_width: int,
         critic_nn_width: int,
         discount_factor: float,
@@ -91,9 +98,9 @@ def train_run(
             action_losses.append(action_loss)
     except KeyboardInterrupt:
         super_agent.close()
-        torch.save(best_state_dicts[0][0], save_path + "-q1")
-        torch.save(best_state_dicts[0][1], save_path + "-q2")
-        torch.save(best_state_dicts[1], save_path + "-action")
+        torch.save(best_state_dicts[0][0], save_path / "q1")
+        torch.save(best_state_dicts[0][1], save_path / "q2")
+        torch.save(best_state_dicts[1], save_path / "action")
         print("models saved")
 
 
@@ -101,7 +108,7 @@ def run(train: bool,
         agent_count: int,
         validation_interval: int,
         validation_repeats: int,
-        save_path: str,
+        save_path: pathlib.Path,
         actor_nn_width: int,
         critic_nn_width: int,
         discount_factor: float,
@@ -154,7 +161,7 @@ def run(train: bool,
 
 
 def main(selection: str, train: bool) -> None:
-    model_root = "models/"
+    model_root = pathlib.Path("models")
     random_action_probability = 1
     minimum_random_action_probability = 0.1
     seed = 42
@@ -163,7 +170,6 @@ def main(selection: str, train: bool) -> None:
             environment = "CartPole-v1"
             observation_length = 4
             action_length = 1
-            save_path = "model-cartpole"
             validation_interval = 100
             validation_repeats = 100
             buffer_size = 2 ** 8
@@ -179,7 +185,6 @@ def main(selection: str, train: bool) -> None:
             agent_count = 2 ** 5
             validation_interval = 1000
             validation_repeats = 10
-            save_path = "model-bipedal"
             actor_nn_width = 2 ** 9
             critic_nn_width = 2 ** 9
             discount_factor = 0.9
@@ -192,11 +197,16 @@ def main(selection: str, train: bool) -> None:
             target_update_proportion = 2 ** -1
         case _:
             raise NotImplementedError
+    if not model_root.exists():
+        model_root.mkdir()
+    full_model_path = model_root / environment
+    if not full_model_path.exists():
+        full_model_path.mkdir()
     run(train=train,
         agent_count=agent_count,
         validation_interval=validation_interval,
         validation_repeats=validation_repeats,
-        save_path=model_root + save_path,
+        save_path=full_model_path,
         actor_nn_width=actor_nn_width,
         critic_nn_width=critic_nn_width,
         discount_factor=discount_factor,

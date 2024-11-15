@@ -1,3 +1,5 @@
+import pathlib
+
 import torch
 import typing
 from agents.actor_critic.sub_critic import SubCritic
@@ -7,12 +9,12 @@ if typing.TYPE_CHECKING:
 
 
 class Critic:
-    def __init__(self, load_path: str, observation_length: int, action_length: int, nn_width: int) -> None:
-        self.__critics: tuple[SubCritic, SubCritic] = (SubCritic(load_path=load_path + "-q1",
+    def __init__(self, load_path: pathlib.Path, observation_length: int, action_length: int, nn_width: int) -> None:
+        self.__critics: tuple[SubCritic, SubCritic] = (SubCritic(load_path=load_path / "q1",
                                                                  observation_length=observation_length,
                                                                  action_length=action_length,
                                                                  nn_width=nn_width),
-                                                       SubCritic(load_path=load_path + "-q2",
+                                                       SubCritic(load_path=load_path / "q2",
                                                                  observation_length=observation_length,
                                                                  action_length=action_length,
                                                                  nn_width=nn_width))

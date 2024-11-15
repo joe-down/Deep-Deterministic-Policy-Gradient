@@ -1,3 +1,4 @@
+import pathlib
 import typing
 
 import gymnasium
@@ -11,7 +12,7 @@ from agents.runner import Runner
 class SuperAgent:
     def __init__(self,
                  train_agent_count: int,
-                 save_path: str,
+                 save_path: pathlib.Path,
                  environment: str,
                  seed: int,
                  actor_nn_width: int,

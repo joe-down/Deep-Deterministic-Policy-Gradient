@@ -1,3 +1,5 @@
+import pathlib
+
 import torch
 import typing
 import copy
@@ -8,7 +10,7 @@ if typing.TYPE_CHECKING:
 
 
 class Actor(ActorCriticBase):
-    def __init__(self, load_path: str, observation_length: int, action_length: int, nn_width: int) -> None:
+    def __init__(self, load_path: pathlib.Path, observation_length: int, action_length: int, nn_width: int) -> None:
         neural_network = torch.nn.Sequential(
             torch.nn.Linear(observation_length, nn_width),
             torch.nn.ReLU(),
@@ -19,7 +21,7 @@ class Actor(ActorCriticBase):
             torch.nn.Linear(nn_width, action_length),
             torch.nn.Sigmoid(),
         )
-        super().__init__(load_path=load_path + "-action", neural_network=neural_network)
+        super().__init__(load_path=load_path / "action", neural_network=neural_network)
         self.__optimiser: torch.optim.Optimizer = torch.optim.AdamW(params=self._parameters)
         self.__target_neural_network = copy.deepcopy(neural_network)
         self.__update_target_network(target_update_proportion=1)

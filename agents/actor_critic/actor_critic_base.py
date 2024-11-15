@@ -1,9 +1,11 @@
+import pathlib
+
 import torch
 import typing
 
 
 class ActorCriticBase:
-    def __init__(self, load_path: str, neural_network: torch.nn.Sequential) -> None:
+    def __init__(self, load_path: pathlib.Path, neural_network: torch.nn.Sequential) -> None:
         self.__neural_network: torch.nn.Sequential = neural_network
         try:
             self.__neural_network.load_state_dict(torch.load(load_path))

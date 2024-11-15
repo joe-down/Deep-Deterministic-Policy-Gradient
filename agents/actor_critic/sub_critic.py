@@ -1,3 +1,5 @@
+import pathlib
+
 import torch
 
 from agents.actor_critic.actor import Actor
@@ -5,7 +7,7 @@ from agents.actor_critic.actor_critic_base import ActorCriticBase
 
 
 class SubCritic(ActorCriticBase):
-    def __init__(self, load_path: str, observation_length: int, action_length: int, nn_width: int):
+    def __init__(self, load_path: pathlib.Path, observation_length: int, action_length: int, nn_width: int):
         super().__init__(load_path=load_path,
                          neural_network=torch.nn.Sequential(
                              torch.nn.Linear(observation_length + action_length, nn_width),
