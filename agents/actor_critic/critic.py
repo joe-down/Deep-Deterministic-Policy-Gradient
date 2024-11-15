@@ -34,7 +34,8 @@ class Critic:
                terminations: torch.Tensor,
                next_observations: torch.Tensor,
                discount_factor: float,
-               actor: "Actor") -> float:
+               actor: "Actor",
+               ) -> float:
         loss = self.__critics[self.__q1_main].update(observation_actions=observation_actions,
                                                      immediate_rewards=immediate_rewards,
                                                      terminations=terminations,
@@ -44,4 +45,4 @@ class Critic:
                                                      other_critic=self.__critics[not self.__q1_main],
                                                      actor=actor)
         self.__q1_main = not self.__q1_main
-        return float(loss)
+        return loss

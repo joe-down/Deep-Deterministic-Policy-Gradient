@@ -28,7 +28,8 @@ class SubCritic(ActorCriticBase):
                discount_factor: float,
                loss_function: torch.nn.MSELoss,
                other_critic: "SubCritic",
-               actor: "Actor") -> float:
+               actor: "Actor",
+               ) -> float:
         best_next_actions = actor.forward_target_network(observations=next_observations).detach()
         best_next_observation_actions = torch.concatenate((next_observations, best_next_actions), dim=1)
         target = (immediate_rewards + discount_factor * (1 - terminations)
@@ -38,4 +39,4 @@ class SubCritic(ActorCriticBase):
         loss = loss_function(target, prediction)
         loss.backward()
         self.__optimiser.step()
-        return float(loss)
+        return loss
