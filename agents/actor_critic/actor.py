@@ -22,7 +22,7 @@ class Actor(ActorCriticBase):
             torch.nn.Sigmoid(),
         )
         super().__init__(load_path=load_path / "action", neural_network=neural_network)
-        self.__optimiser: torch.optim.Optimizer = torch.optim.AdamW(params=self._parameters)
+        self.__optimiser = torch.optim.AdamW(params=self._parameters)
         self.__target_neural_network = copy.deepcopy(neural_network)
         self.__update_target_network(target_update_proportion=1)
 
@@ -37,9 +37,9 @@ class Actor(ActorCriticBase):
         loss.backward()
         self.__optimiser.step()
         self.__update_target_network(target_update_proportion=target_update_proportion)
-        return float(loss)
+        return loss
 
-    def __update_target_network(self, target_update_proportion: float):
+    def __update_target_network(self, target_update_proportion: float) -> None:
         assert 0 <= target_update_proportion <= 1
         for parameter, target_parameter in zip(self._parameters, self.__target_neural_network.parameters()):
             target_parameter.data = ((1 - target_update_proportion) * target_parameter.data
