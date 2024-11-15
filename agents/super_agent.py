@@ -70,19 +70,19 @@ class SuperAgent(BaseAgent):
     def train(self) -> tuple[float, float]:
         if not self.training:
             return 0, 0
-        ready_agents = torch.tensor([agent_id for agent_id, agent in enumerate(self.__agents) if agent.buffer_ready()])
+        ready_agents = [agent for agent in self.__agents if agent.buffer_ready()]
         if len(ready_agents) < 1:
             return 0, 0
-        batch_agents = ready_agents[torch.randint(high=len(ready_agents), size=(self.__train_batch_size,))]
+        agent_observation_counts = torch.randint(high=len(ready_agents), size=(self.__train_batch_size,)).bincount()
         (observation_actions,
          next_observation_actions,
          immediate_rewards,
-         terminations) = self.__agents[batch_agents[0]].random_observations(number=1)
-        for agent_id in batch_agents[1:]:
+         terminations) = ready_agents[0].random_observations(number=agent_observation_counts[0].item())
+        for agent, observation_count in zip(ready_agents[1:], agent_observation_counts[1:]):
             (current_observation_actions,
              current_next_observation_actions,
              current_immediate_rewards,
-             current_terminations) = self.__agents[agent_id].random_observations(number=1)
+             current_terminations) = agent.random_observations(number=observation_count)
             observation_actions = torch.concatenate((observation_actions, current_observation_actions))
             next_observation_actions = torch.concatenate((next_observation_actions, current_next_observation_actions))
             immediate_rewards = torch.concatenate((immediate_rewards, current_immediate_rewards))
