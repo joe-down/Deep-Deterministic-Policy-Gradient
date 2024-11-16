@@ -56,8 +56,12 @@ class SuperAgent:
             observation_length=observation_length,
             action_length=self.__action_length,
             buffer_size=buffer_size,
-            random_action_probability=minimum_random_action_probabilities[index - 1].item(),
-            minimum_random_action_probability=minimum_random_action_probabilities[index].item(),
+            random_action_probability=minimum_random_action_probabilities[max(0, index - 1)].item()
+            if len(minimum_random_action_probabilities) > 1
+            else random_action_probability,
+            minimum_random_action_probability=minimum_random_action_probabilities[index].item()
+            if len(minimum_random_action_probabilities) > 1
+            else minimum_random_action_probability,
             random_action_probability_decay=random_action_probability_decay,
         ) for index in range(train_agent_count)]
 
