@@ -28,7 +28,7 @@ class Agent(BasicAgent):
     def buffer_ready(self) -> bool:
         return self.__buffer.buffer_observations_ready
 
-    def action(self, observation: numpy.ndarray, actor: Actor) -> numpy.ndarray:
+    def action(self, observation: numpy.ndarray, actor: Actor) -> torch.Tensor:
         observation = torch.tensor(observation)
         if torch.rand(1) > self.__random_action_probability:
             best_action = actor.forward_network(observations=observation).detach()
@@ -38,7 +38,7 @@ class Agent(BasicAgent):
         self.__random_action_probability = max(self.__random_action_probability
                                                * self.__random_action_probability_decay,
                                                self.__minimum_random_action_probability)
-        return best_action.cpu().numpy()
+        return best_action
 
     def reward(self, reward: float, terminated: bool) -> None:
         self.__buffer.push_reward(reward=reward, terminated=terminated)

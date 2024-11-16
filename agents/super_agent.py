@@ -26,6 +26,7 @@ class SuperAgent:
                  observation_length: int,
                  action_length: int,
                  target_update_proportion: float,
+                 action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
                  ) -> None:
         self.__action_length = action_length
         self.__discount_factor = discount_factor
@@ -69,6 +70,7 @@ class SuperAgent:
             env=gymnasium.make(environment, render_mode=None),
             agent=agent,
             seed=seed + agent_index,
+            action_formatter=action_formatter,
         ) for agent_index, agent in enumerate(self.__agents)]
 
     @property
@@ -125,4 +127,4 @@ class SuperAgent:
             critic=self.__critic,
         )
 
-        return loss_1, loss_2
+        return loss_1.__float__(), loss_2.__float__()

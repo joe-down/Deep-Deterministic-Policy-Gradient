@@ -1,5 +1,6 @@
 import itertools
 import pathlib
+import typing
 
 import gymnasium
 import numpy
@@ -23,7 +24,8 @@ def validation_run(
     actor = Actor(load_path=load_path,
                   observation_length=observation_length,
                   action_length=action_length,
-                  nn_width=nn_width)
+                  nn_width=nn_width,
+                  )
     try:
         while True:
             print(runner.run_full(actor=actor))
@@ -50,6 +52,7 @@ def train_run(
         seed: int,
         target_update_proportion: float,
         validation_runner: Runner,
+        action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
 ) -> None:
     super_agent = SuperAgent(train_agent_count=agent_count,
                              save_path=save_path,
@@ -66,6 +69,7 @@ def train_run(
                              observation_length=observation_length,
                              action_length=action_length,
                              target_update_proportion=target_update_proportion,
+                             action_formatter=action_formatter,
                              )
     best_state_dicts = super_agent.state_dicts
     figure = matplotlib.pyplot.figure()
@@ -104,7 +108,8 @@ def train_run(
         print("models saved")
 
 
-def run(train: bool,
+def run(
+        train: bool,
         agent_count: int,
         validation_interval: int,
         validation_repeats: int,
@@ -121,12 +126,15 @@ def run(train: bool,
         action_length: int,
         environment: str,
         seed: int,
-        target_update_proportion: float) -> None:
+        target_update_proportion: float,
+        action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
+) -> None:
     torch.set_default_device('cuda')
     validation_runner = Runner(
         env=gymnasium.make(environment, render_mode=None if train else "human"),
         agent=BasicAgent(),
         seed=seed,
+        action_formatter=action_formatter,
     )
     if train:
         train_run(
@@ -148,6 +156,7 @@ def run(train: bool,
             seed=seed + 1,
             target_update_proportion=target_update_proportion,
             validation_runner=validation_runner,
+            action_formatter=action_formatter
         )
     else:
         validation_run(
@@ -160,41 +169,50 @@ def run(train: bool,
     validation_runner.close()
 
 
-def main(selection: str, train: bool) -> None:
+def main(environment: str, train: bool) -> None:
     model_root = pathlib.Path("models")
     random_action_probability = 1
-    minimum_random_action_probability = 0.1
+    minimum_random_action_probability = 0.01
     seed = 42
-    match selection:
-        case 'cartpole':
-            environment = "CartPole-v1"
+    match environment:
+        case 'CartPole-v1':
+            # Environment properties
+            def action_formatter(action: torch.Tensor):
+                return torch.round(action).to(torch.int)
+
             observation_length = 4
             action_length = 1
+            # Model parameters
+            actor_nn_width = 2 ** 5
+            critic_nn_width = 2 ** 5
+            # Train parameters
+            train_batch_size = 2 ** 8
+            agent_count = 2 ** 4
+            buffer_size = 2 ** 8
             validation_interval = 100
             validation_repeats = 100
-            buffer_size = 2 ** 8
-            #
             discount_factor = 0.9
-            agent_count = 2 ** 7
             random_action_probability_decay = 1 - 1 / 2 ** 10
-            train_batch_size = 2 ** 6
-            actor_nn_width = 2 ** 4
-            critic_nn_width = 2 ** 4
             target_update_proportion = 2 ** 0
-        case 'bipedal':
-            agent_count = 2 ** 5
-            validation_interval = 1000
-            validation_repeats = 10
-            actor_nn_width = 2 ** 9
-            critic_nn_width = 2 ** 9
-            discount_factor = 0.9
-            train_batch_size = 2 ** 4
-            buffer_size = 2 ** 15
-            random_action_probability_decay = 1 - 1 / 2 ** 10
-            environment = "BipedalWalker-v3"
+        case 'BipedalWalker-v3':
+            # Environment properties
+            def action_formatter(action: torch.Tensor):
+                return action * 2 - 1
+
             observation_length = 24
             action_length = 4
-            target_update_proportion = 2 ** -1
+            # Model parameters
+            actor_nn_width = 2 ** 4
+            critic_nn_width = 2 ** 4
+            # Train parameters
+            train_batch_size = 2 ** 6
+            agent_count = 2 ** 7
+            buffer_size = 2 ** 8
+            validation_interval = 100
+            validation_repeats = 100
+            discount_factor = 0.9
+            random_action_probability_decay = 1 - 1 / 2 ** 10
+            target_update_proportion = 2 ** 0
         case _:
             raise NotImplementedError
     if not model_root.exists():
@@ -219,8 +237,10 @@ def main(selection: str, train: bool) -> None:
         seed=seed,
         observation_length=observation_length,
         action_length=action_length,
-        target_update_proportion=target_update_proportion)
+        target_update_proportion=target_update_proportion,
+        action_formatter=action_formatter,
+        )
 
 
 if __name__ == '__main__':
-    main(selection='cartpole', train=True)
+    main(environment='CartPole-v1', train=True)
