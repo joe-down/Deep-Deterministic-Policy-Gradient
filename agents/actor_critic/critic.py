@@ -26,7 +26,15 @@ class Critic:
         return self.__critics[0].state_dict, self.__critics[1].state_dict
 
     def forward_network(self, observation_actions: torch.Tensor) -> torch.Tensor:
-        return self.__critics[0].forward_network(observations=observation_actions)
+        q_rewards = torch.concatenate(tuple(critic.forward_network(observations=observation_actions)
+                                            for critic in self.__critics),
+                                      dim=-1)
+        assert q_rewards.shape == (observation_actions.shape[0], 2)
+        least_reward_values, least_reward_indexes = q_rewards.min(dim=-1)
+        assert least_reward_values.shape == (observation_actions.shape[0],)
+        least_reward_values = least_reward_values.unsqueeze(-1)
+        assert least_reward_values.shape == (observation_actions.shape[0], 1)
+        return least_reward_values
 
     def update(self,
                observation_actions: torch.Tensor,
