@@ -186,13 +186,13 @@ def main(environment: str, train: bool) -> None:
             actor_nn_width = 2 ** 5
             critic_nn_width = 2 ** 5
             # Train parameters
-            train_batch_size = 2 ** 8
+            train_batch_size = 2 ** 22
             agent_count = 2 ** 4
-            buffer_size = 2 ** 8
+            buffer_size = train_batch_size
             validation_interval = 100
             validation_repeats = 100
-            discount_factor = 0.9
-            random_action_probability_decay = 1 - 1 / 2 ** 10
+            discount_factor = 0.99
+            random_action_probability_decay = 1 - 1 / 2 ** 20
             target_update_proportion = 2 ** 0
         case 'BipedalWalker-v3':
             # Environment properties
