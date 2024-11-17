@@ -42,7 +42,7 @@ class Actor(ActorCriticBase):
         loss.backward()
         self.__optimiser.step()
         self.__update_target_network(target_update_proportion=target_update_proportion)
-        return loss
+        return -loss
 
     def __update_target_network(self, target_update_proportion: float) -> None:
         assert 0 <= target_update_proportion <= 1
