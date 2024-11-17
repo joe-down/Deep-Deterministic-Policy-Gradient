@@ -198,9 +198,9 @@ def main(environment: str, train: bool) -> None:
             observation_length = 4
             action_length = 1
             # Model parameters
-            actor_nn_width = 2 ** 5
+            actor_nn_width = 2 ** 4
             actor_nn_depth = 2 ** 1
-            critic_nn_width = 2 ** 5
+            critic_nn_width = 2 ** 4
             critic_nn_depth = 2 ** 1
             # Train parameters
             train_batch_size = 2 ** 22
