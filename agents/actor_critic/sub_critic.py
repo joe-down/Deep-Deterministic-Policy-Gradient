@@ -27,11 +27,14 @@ class SubCritic(ActorCriticBase):
                next_observations: torch.Tensor,
                discount_factor: float,
                loss_function: torch.nn.MSELoss,
+               noise_variance: float,
                other_critic: "SubCritic",
                actor: "Actor",
                ) -> float:
-        best_next_actions = actor.forward_target_network(observations=next_observations).detach()
-        best_next_observation_actions = torch.concatenate((next_observations, best_next_actions), dim=1)
+        noiseless_best_next_actions = actor.forward_target_network(observations=next_observations)
+        noise = torch.randn(size=noiseless_best_next_actions.shape) * noise_variance ** 0.5
+        noisy_best_next_actions = (noiseless_best_next_actions + noise).detach()
+        best_next_observation_actions = torch.concatenate((next_observations, noisy_best_next_actions), dim=1)
         target = (immediate_rewards + discount_factor * (1 - terminations)
                   * other_critic.forward_network(best_next_observation_actions))
         prediction = self.forward_network(observation_actions)

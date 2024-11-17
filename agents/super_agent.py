@@ -26,12 +26,14 @@ class SuperAgent:
                  observation_length: int,
                  action_length: int,
                  target_update_proportion: float,
+                 noise_variance: float,
                  action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
                  ) -> None:
         self.__action_length = action_length
         self.__discount_factor = discount_factor
         self.__train_batch_size = train_batch_size
         self.__target_update_proportion = target_update_proportion
+        self.__noise_variance = noise_variance
 
         self.__critic = Critic(
             load_path=save_path,
@@ -118,6 +120,7 @@ class SuperAgent:
             terminations=terminations,
             next_observations=next_observation_actions[:, :-self.__action_length],
             discount_factor=self.__discount_factor,
+            noise_variance=self.__noise_variance,
             actor=self.__actor,
         )
 

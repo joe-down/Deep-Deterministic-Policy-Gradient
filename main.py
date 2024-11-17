@@ -51,6 +51,7 @@ def train_run(
         environment: str,
         seed: int,
         target_update_proportion: float,
+        noise_variance: float,
         validation_runner: Runner,
         action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
 ) -> None:
@@ -69,6 +70,7 @@ def train_run(
                              observation_length=observation_length,
                              action_length=action_length,
                              target_update_proportion=target_update_proportion,
+                             noise_variance=noise_variance,
                              action_formatter=action_formatter,
                              )
     best_state_dicts = super_agent.state_dicts
@@ -127,6 +129,7 @@ def run(
         environment: str,
         seed: int,
         target_update_proportion: float,
+        noise_variance: float,
         action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
 ) -> None:
     torch.set_default_device('cuda')
@@ -155,6 +158,7 @@ def run(
             environment=environment,
             seed=seed + 1,
             target_update_proportion=target_update_proportion,
+            noise_variance=noise_variance,
             validation_runner=validation_runner,
             action_formatter=action_formatter
         )
@@ -194,6 +198,7 @@ def main(environment: str, train: bool) -> None:
             discount_factor = 0.99
             random_action_probability_decay = 1 - 1 / 2 ** 20
             target_update_proportion = 2 ** 0
+            noise_variance = 0
         case 'BipedalWalker-v3':
             # Environment properties
             def action_formatter(action: torch.Tensor):
@@ -213,6 +218,7 @@ def main(environment: str, train: bool) -> None:
             discount_factor = 0.9
             random_action_probability_decay = 1 - 1 / 2 ** 10
             target_update_proportion = 2 ** 0
+            noise_variance = 0
         case _:
             raise NotImplementedError
     if not model_root.exists():
@@ -238,6 +244,7 @@ def main(environment: str, train: bool) -> None:
         observation_length=observation_length,
         action_length=action_length,
         target_update_proportion=target_update_proportion,
+        noise_variance=noise_variance,
         action_formatter=action_formatter,
         )
 

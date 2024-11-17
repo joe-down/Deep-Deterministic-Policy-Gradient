@@ -42,15 +42,18 @@ class Critic:
                terminations: torch.Tensor,
                next_observations: torch.Tensor,
                discount_factor: float,
+               noise_variance: float,
                actor: "Actor",
                ) -> float:
-        loss = self.__critics[self.__q1_main].update(observation_actions=observation_actions,
-                                                     immediate_rewards=immediate_rewards,
-                                                     terminations=terminations,
-                                                     next_observations=next_observations,
-                                                     discount_factor=discount_factor,
-                                                     loss_function=self.__loss_function,
-                                                     other_critic=self.__critics[not self.__q1_main],
-                                                     actor=actor)
+        critic: SubCritic = self.__critics[self.__q1_main]
+        loss = critic.update(observation_actions=observation_actions,
+                             immediate_rewards=immediate_rewards,
+                             terminations=terminations,
+                             next_observations=next_observations,
+                             discount_factor=discount_factor,
+                             loss_function=self.__loss_function,
+                             noise_variance=noise_variance,
+                             other_critic=self.__critics[not self.__q1_main],
+                             actor=actor)
         self.__q1_main = not self.__q1_main
         return loss
