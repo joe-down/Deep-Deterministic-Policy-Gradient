@@ -22,17 +22,18 @@ def validation_run(
         actor_nn_depth: int,
         runner: Runner,
 ) -> None:
-    actor = Actor(load_path=load_path,
-                  observation_length=observation_length,
-                  action_length=action_length,
-                  nn_width=actor_nn_width,
-                  nn_depth=actor_nn_depth,
-                  )
-    try:
-        while True:
-            print(runner.run_full(actor=actor))
-    except KeyboardInterrupt:
-        return
+    with torch.inference_mode():
+        actor = Actor(load_path=load_path,
+                      observation_length=observation_length,
+                      action_length=action_length,
+                      nn_width=actor_nn_width,
+                      nn_depth=actor_nn_depth,
+                      )
+        try:
+            while True:
+                print(runner.run_full(actor=actor))
+        except KeyboardInterrupt:
+            return
 
 
 def train_run(
@@ -93,17 +94,18 @@ def train_run(
     try:
         for iteration in tqdm.tqdm(itertools.count()):
             if iteration % validation_interval == 0:
-                loss_subplot.plot(losses)
-                action_loss_subplot.plot(action_losses)
-                survival_times.append(numpy.mean([validation_runner.run_full(super_agent.actor)
-                                                  for _ in range(validation_repeats)]))
-                survival_times_subplot.plot(survival_times)
-                random_probabilities.append(super_agent.random_action_probabilities)
-                random_probability_subplot.plot(random_probabilities)
-                figure.canvas.draw()
-                figure.canvas.flush_events()
-                if len(survival_times) < 2 or survival_times[-1] >= max(survival_times[:-1]):
-                    best_state_dicts = super_agent.state_dicts
+                with torch.inference_mode():
+                    loss_subplot.plot(losses)
+                    action_loss_subplot.plot(action_losses)
+                    survival_times.append(numpy.mean([validation_runner.run_full(super_agent.actor)
+                                                      for _ in range(validation_repeats)]))
+                    survival_times_subplot.plot(survival_times)
+                    random_probabilities.append(super_agent.random_action_probabilities)
+                    random_probability_subplot.plot(random_probabilities)
+                    figure.canvas.draw()
+                    figure.canvas.flush_events()
+                    if len(survival_times) < 2 or survival_times[-1] >= max(survival_times[:-1]):
+                        best_state_dicts = super_agent.state_dicts
             super_agent.step()
             q_loss, action_loss = super_agent.train()
             losses.append(q_loss)
