@@ -14,6 +14,7 @@ import matplotlib.pyplot
 import tqdm
 
 
+@torch.inference_mode()
 def validation_run(
         load_path: pathlib.Path,
         observation_length: int,
@@ -22,18 +23,17 @@ def validation_run(
         actor_nn_depth: int,
         runner: Runner,
 ) -> None:
-    with torch.inference_mode():
-        actor = Actor(load_path=load_path,
-                      observation_length=observation_length,
-                      action_length=action_length,
-                      nn_width=actor_nn_width,
-                      nn_depth=actor_nn_depth,
-                      )
-        try:
-            while True:
-                print(runner.run_full(actor=actor))
-        except KeyboardInterrupt:
-            return
+    actor = Actor(load_path=load_path,
+                  observation_length=observation_length,
+                  action_length=action_length,
+                  nn_width=actor_nn_width,
+                  nn_depth=actor_nn_depth,
+                  )
+    try:
+        while True:
+            print(runner.run_full(actor=actor))
+    except KeyboardInterrupt:
+        return
 
 
 def train_run(
