@@ -21,7 +21,7 @@ class Buffer:
     def buffer_observations_ready(self) -> bool:
         return self.entry_count >= 2 and self.next_observation_index == self.next_reward_termination_index
 
-    def push_observation(self, observation: torch.tensor) -> None:
+    def push_observation(self, observation: torch.Tensor) -> None:
         assert observation.shape == (self.nn_input_length,)
         assert self.next_observation_index == self.next_reward_termination_index
         self.observations[self.next_observation_index] = observation
