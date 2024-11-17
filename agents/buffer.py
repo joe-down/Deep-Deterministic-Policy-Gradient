@@ -2,6 +2,7 @@ import torch
 
 
 class Buffer:
+    @torch.no_grad()
     def __init__(self, nn_input: int, buffer_size: int) -> None:
         assert nn_input >= 1
         assert buffer_size >= 1
@@ -21,10 +22,11 @@ class Buffer:
     def buffer_observations_ready(self) -> bool:
         return self.entry_count >= 2 and self.next_observation_index == self.next_reward_termination_index
 
+    @torch.no_grad()
     def push_observation(self, observation: torch.Tensor) -> None:
         assert observation.shape == (self.nn_input_length,)
         assert self.next_observation_index == self.next_reward_termination_index
-        self.observations[self.next_observation_index] = observation
+        self.observations[self.next_observation_index] = observation.detach()
         self.next_observation_index = (self.next_observation_index + 1) % self.__buffer_size
 
     def push_reward(self, reward: float, terminated: bool) -> None:
@@ -42,6 +44,7 @@ class Buffer:
     def filled(self) -> bool:
         return self.entry_count == self.__buffer_size
 
+    @torch.no_grad()
     def random_observations(self, number: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         assert self.buffer_observations_ready
         valid_indexes = torch.tensor([i for i in range(self.entry_count) if i != self.next_observation_index])

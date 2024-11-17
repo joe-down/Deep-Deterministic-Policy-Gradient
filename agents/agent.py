@@ -31,7 +31,7 @@ class Agent(BasicAgent):
     def action(self, observation: numpy.ndarray, actor: Actor) -> torch.Tensor:
         observation = torch.tensor(observation)
         if torch.rand(1) > self.__random_action_probability:
-            best_action = actor.forward_network(observations=observation).detach()
+            best_action = actor.forward_network(observations=observation)
         else:
             best_action = torch.rand((self.__action_length,))
         self.__buffer.push_observation(observation=torch.concatenate((observation, best_action)))
