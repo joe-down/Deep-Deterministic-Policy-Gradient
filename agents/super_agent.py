@@ -16,7 +16,9 @@ class SuperAgent:
                  environment: str,
                  seed: int,
                  actor_nn_width: int,
+                 actor_nn_depth: int,
                  critic_nn_width: int,
+                 critic_nn_depth: int,
                  discount_factor: float,
                  train_batch_size: int,
                  buffer_size: int,
@@ -40,6 +42,7 @@ class SuperAgent:
             observation_length=observation_length,
             action_length=action_length,
             nn_width=critic_nn_width,
+            nn_depth=critic_nn_depth,
         )
 
         self.__actor = Actor(
@@ -47,6 +50,7 @@ class SuperAgent:
             observation_length=observation_length,
             action_length=action_length,
             nn_width=actor_nn_width,
+            nn_depth=actor_nn_depth,
         )
 
         minimum_random_action_probabilities = torch.linspace(

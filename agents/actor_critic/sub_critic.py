@@ -7,17 +7,22 @@ from agents.actor_critic.actor_critic_base import ActorCriticBase
 
 
 class SubCritic(ActorCriticBase):
-    def __init__(self, load_path: pathlib.Path, observation_length: int, action_length: int, nn_width: int):
-        super().__init__(load_path=load_path,
-                         neural_network=torch.nn.Sequential(
-                             torch.nn.Linear(observation_length + action_length, nn_width),
-                             torch.nn.ReLU(),
-                             torch.nn.Linear(nn_width, nn_width),
-                             torch.nn.ReLU(),
-                             torch.nn.Linear(nn_width, nn_width),
-                             torch.nn.ReLU(),
-                             torch.nn.Linear(nn_width, 1),
-                         ))
+    def __init__(self,
+                 load_path: pathlib.Path,
+                 observation_length: int,
+                 action_length: int,
+                 nn_width: int,
+                 nn_depth: int,
+                 ) -> None:
+        neural_network = torch.nn.Sequential(
+            torch.nn.Linear(observation_length + action_length, nn_width),
+            torch.nn.ReLU(),
+        )
+        for _ in range(nn_depth):
+            neural_network.append(torch.nn.Linear(nn_width, nn_width))
+            neural_network.append(torch.nn.ReLU())
+        neural_network.append(torch.nn.Linear(nn_width, 1))
+        super().__init__(load_path=load_path, neural_network=neural_network)
         self.__optimiser = torch.optim.AdamW(params=self._parameters)
 
     def update(self,

@@ -18,13 +18,15 @@ def validation_run(
         load_path: pathlib.Path,
         observation_length: int,
         action_length: int,
-        nn_width: int,
+        actor_nn_width: int,
+        actor_nn_depth: int,
         runner: Runner,
 ) -> None:
     actor = Actor(load_path=load_path,
                   observation_length=observation_length,
                   action_length=action_length,
-                  nn_width=nn_width,
+                  nn_width=actor_nn_width,
+                  nn_depth=actor_nn_depth,
                   )
     try:
         while True:
@@ -39,7 +41,9 @@ def train_run(
         validation_repeats: int,
         save_path: pathlib.Path,
         actor_nn_width: int,
+        actor_nn_depth: int,
         critic_nn_width: int,
+        critic_nn_depth: int,
         discount_factor: float,
         train_batch_size: int,
         buffer_size: int,
@@ -60,7 +64,9 @@ def train_run(
                              environment=environment,
                              seed=seed,
                              actor_nn_width=actor_nn_width,
+                             actor_nn_depth=actor_nn_depth,
                              critic_nn_width=critic_nn_width,
+                             critic_nn_depth=critic_nn_depth,
                              discount_factor=discount_factor,
                              train_batch_size=train_batch_size,
                              buffer_size=buffer_size,
@@ -117,7 +123,9 @@ def run(
         validation_repeats: int,
         save_path: pathlib.Path,
         actor_nn_width: int,
+        actor_nn_depth: int,
         critic_nn_width: int,
+        critic_nn_depth: int,
         discount_factor: float,
         train_batch_size: int,
         buffer_size: int,
@@ -146,7 +154,9 @@ def run(
             validation_repeats=validation_repeats,
             save_path=save_path,
             actor_nn_width=actor_nn_width,
+            actor_nn_depth=actor_nn_depth,
             critic_nn_width=critic_nn_width,
+            critic_nn_depth=critic_nn_depth,
             discount_factor=discount_factor,
             train_batch_size=train_batch_size,
             buffer_size=buffer_size,
@@ -167,7 +177,8 @@ def run(
             load_path=save_path,
             observation_length=observation_length,
             action_length=action_length,
-            nn_width=actor_nn_width,
+            actor_nn_width=actor_nn_width,
+            actor_nn_depth=actor_nn_depth,
             runner=validation_runner,
         )
     validation_runner.close()
@@ -188,7 +199,9 @@ def main(environment: str, train: bool) -> None:
             action_length = 1
             # Model parameters
             actor_nn_width = 2 ** 5
+            actor_nn_depth = 2 ** 1
             critic_nn_width = 2 ** 5
+            critic_nn_depth = 2 ** 1
             # Train parameters
             train_batch_size = 2 ** 22
             agent_count = 2 ** 4
@@ -208,7 +221,9 @@ def main(environment: str, train: bool) -> None:
             action_length = 4
             # Model parameters
             actor_nn_width = 2 ** 4
+            actor_nn_depth = 2 ** 1
             critic_nn_width = 2 ** 4
+            critic_nn_depth = 2 ** 1
             # Train parameters
             train_batch_size = 2 ** 6
             agent_count = 2 ** 7
@@ -232,7 +247,9 @@ def main(environment: str, train: bool) -> None:
         validation_repeats=validation_repeats,
         save_path=full_model_path,
         actor_nn_width=actor_nn_width,
+        actor_nn_depth=actor_nn_depth,
         critic_nn_width=critic_nn_width,
+        critic_nn_depth=critic_nn_depth,
         discount_factor=discount_factor,
         train_batch_size=train_batch_size,
         buffer_size=buffer_size,

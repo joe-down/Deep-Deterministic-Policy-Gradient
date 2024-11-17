@@ -10,17 +10,22 @@ if typing.TYPE_CHECKING:
 
 
 class Actor(ActorCriticBase):
-    def __init__(self, load_path: pathlib.Path, observation_length: int, action_length: int, nn_width: int) -> None:
+    def __init__(self,
+                 load_path: pathlib.Path,
+                 observation_length: int,
+                 action_length: int,
+                 nn_width: int,
+                 nn_depth: int,
+                 ) -> None:
         neural_network = torch.nn.Sequential(
             torch.nn.Linear(observation_length, nn_width),
             torch.nn.ReLU(),
-            torch.nn.Linear(nn_width, nn_width),
-            torch.nn.ReLU(),
-            torch.nn.Linear(nn_width, nn_width),
-            torch.nn.ReLU(),
-            torch.nn.Linear(nn_width, action_length),
-            torch.nn.Sigmoid(),
         )
+        for _ in range(nn_depth):
+            neural_network.append(torch.nn.Linear(nn_width, nn_width))
+            neural_network.append(torch.nn.ReLU())
+        neural_network.append(torch.nn.Linear(nn_width, action_length))
+        neural_network.append(torch.nn.Sigmoid())
         super().__init__(load_path=load_path / "action", neural_network=neural_network)
         self.__optimiser = torch.optim.AdamW(params=self._parameters)
         self.__target_neural_network = copy.deepcopy(neural_network)

@@ -9,15 +9,25 @@ if typing.TYPE_CHECKING:
 
 
 class Critic:
-    def __init__(self, load_path: pathlib.Path, observation_length: int, action_length: int, nn_width: int) -> None:
+    def __init__(self,
+                 load_path: pathlib.Path,
+                 observation_length: int,
+                 action_length: int,
+                 nn_width: int,
+                 nn_depth: int,
+                 ) -> None:
         self.__critics: tuple[SubCritic, SubCritic] = (SubCritic(load_path=load_path / "q1",
                                                                  observation_length=observation_length,
                                                                  action_length=action_length,
-                                                                 nn_width=nn_width),
+                                                                 nn_width=nn_width,
+                                                                 nn_depth=nn_depth,
+                                                                 ),
                                                        SubCritic(load_path=load_path / "q2",
                                                                  observation_length=observation_length,
                                                                  action_length=action_length,
-                                                                 nn_width=nn_width))
+                                                                 nn_width=nn_width,
+                                                                 nn_depth=nn_depth,
+                                                                 ))
         self.__loss_function: torch.nn.MSELoss = torch.nn.MSELoss()
         self.__q1_main = True
 
