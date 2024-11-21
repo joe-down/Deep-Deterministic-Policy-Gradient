@@ -200,9 +200,9 @@ def main(environment: str, train: bool) -> None:
             observation_length = 4
             action_length = 1
             # Model parameters
-            actor_nn_width = 2 ** 4
+            actor_nn_width = 2 ** 3
             actor_nn_depth = 2 ** 1
-            critic_nn_width = 2 ** 4
+            critic_nn_width = 2 ** 3
             critic_nn_depth = 2 ** 1
             # Train parameters
             train_batch_size = 2 ** 22
@@ -269,4 +269,4 @@ def main(environment: str, train: bool) -> None:
 
 
 if __name__ == '__main__':
-    main(environment='CartPole-v1', train=True)
+    main(environment='CartPole-v1', train=False)
