@@ -14,6 +14,14 @@ class SubCritic(ActorCriticBase):
                  nn_width: int,
                  nn_depth: int,
                  ) -> None:
+        assert observation_length >= 1
+        assert action_length >= 1
+        assert nn_width >= 1
+        assert nn_depth >= 1
+
+        self.__observation_length = observation_length
+        self.__action_length = action_length
+
         neural_network = torch.nn.Sequential(
             torch.nn.Linear(observation_length + action_length, nn_width),
             torch.nn.ReLU(),
@@ -36,6 +44,17 @@ class SubCritic(ActorCriticBase):
                other_critic: "SubCritic",
                actor: "Actor",
                ) -> float:
+        assert observation_actions.shape[1:] == (self.__observation_length + self.__action_length,)
+        assert immediate_rewards.shape[1:] == (1,)
+        assert terminations.shape[1:] == (1,)
+        assert next_observations.shape[1:] == (self.__observation_length,)
+        assert (observation_actions.shape[0]
+                == immediate_rewards.shape[0]
+                == terminations.shape[0]
+                == next_observations.shape[0])
+        assert 0 <= discount_factor <= 1
+        assert noise_variance >= 0
+
         noiseless_best_next_actions = actor.forward_target_network(observations=next_observations)
         noise = torch.randn(size=noiseless_best_next_actions.shape) * noise_variance ** 0.5
         noisy_best_next_actions = (noiseless_best_next_actions + noise)
