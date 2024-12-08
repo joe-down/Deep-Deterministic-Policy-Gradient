@@ -7,7 +7,6 @@ import numpy
 import torch.cuda
 
 from agents.actor_critic.actor import Actor
-from agents.basic_agent import BasicAgent
 from agents.super_agent import SuperAgent
 from agents.runner import Runner
 import matplotlib.pyplot
@@ -145,7 +144,6 @@ def run(
     torch.set_default_device('cuda')
     validation_runner = Runner(
         env=gymnasium.make(environment, render_mode=None if train else "human"),
-        agent=BasicAgent(),
         seed=seed,
         action_formatter=action_formatter,
     )

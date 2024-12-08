@@ -2,10 +2,11 @@ import pathlib
 import typing
 
 import gymnasium
+import numpy
 import torch
 from agents.actor_critic.actor import Actor
-from agents.agent import Agent
 from agents.actor_critic.critic import Critic
+from agents.buffer import Buffer
 from agents.runner import Runner
 
 
@@ -36,7 +37,7 @@ class SuperAgent:
         self.__train_batch_size = train_batch_size
         self.__target_update_proportion = target_update_proportion
         self.__noise_variance = noise_variance
-
+        self.__random_action_probability_decay = random_action_probability_decay
         self.__critic = Critic(
             load_path=save_path,
             observation_length=observation_length,
@@ -44,7 +45,6 @@ class SuperAgent:
             nn_width=critic_nn_width,
             nn_depth=critic_nn_depth,
         )
-
         self.__actor = Actor(
             load_path=save_path,
             observation_length=observation_length,
@@ -52,84 +52,70 @@ class SuperAgent:
             nn_width=actor_nn_width,
             nn_depth=actor_nn_depth,
         )
-
-        minimum_random_action_probabilities = torch.linspace(
+        self.__runners = [Runner(
+            env=gymnasium.make(environment, render_mode=None),
+            seed=seed + runner_index,
+            action_formatter=action_formatter,
+        ) for runner_index in range(train_agent_count)]
+        self.__minimum_random_action_probabilities = torch.linspace(
             random_action_probability,
             minimum_random_action_probability,
             train_agent_count,
-        )
-
-        self.__agents = [Agent(
+        ).unsqueeze(dim=-1)
+        self.__random_action_probabilities = torch.ones_like(self.__minimum_random_action_probabilities)
+        self.__buffer = Buffer(
+            train_agent_count=train_agent_count,
             observation_length=observation_length,
             action_length=self.__action_length,
             buffer_size=buffer_size,
-            random_action_probability=minimum_random_action_probabilities[max(0, index - 1)].item()
-            if len(minimum_random_action_probabilities) > 1
-            else random_action_probability,
-            minimum_random_action_probability=minimum_random_action_probabilities[index].item()
-            if len(minimum_random_action_probabilities) > 1
-            else minimum_random_action_probability,
-            random_action_probability_decay=random_action_probability_decay,
-        ) for index in range(train_agent_count)]
-
-        self.__runners = [Runner(
-            env=gymnasium.make(environment, render_mode=None),
-            agent=agent,
-            seed=seed + agent_index,
-            action_formatter=action_formatter,
-        ) for agent_index, agent in enumerate(self.__agents)]
+        )
 
     @property
     def state_dicts(self) -> tuple[tuple[dict[str, typing.Any], dict[str, typing.Any]], dict[str, typing.Any]]:
         return self.__critic.state_dicts, self.__actor.state_dict
 
     @property
-    def random_action_probabilities(self) -> list[float]:
-        return [agent.random_action_probability for agent in self.__agents]
+    def random_action_probabilities(self) -> numpy.ndarray:
+        return self.__random_action_probabilities.squeeze().cpu().numpy()
 
     @property
     def actor(self) -> Actor:
         return self.__actor
 
     def step(self) -> None:
-        for runner in self.__runners:
-            runner.step(actor=self.__actor)
+        observations = torch.stack([torch.tensor(runner.observation) for runner in self.__runners])
+        actor_actions = self.actor.forward_network(observations=observations)
+        random_action_indexes = torch.rand_like(self.__random_action_probabilities) < self.__random_action_probabilities
+        actions = actor_actions * ~random_action_indexes + torch.rand_like(actor_actions) * random_action_indexes
+        runner_steps = [runner.step(action=action.squeeze()) for action, runner in zip(actions, self.__runners)]
+        terminations = torch.tensor([dead for dead, reward in runner_steps])
+        rewards = torch.tensor([reward for dead, reward in runner_steps])
+        self.__buffer.push(observations=observations, actions=actions, rewards=rewards, terminations=terminations)
+        self.__random_action_probabilities = torch.maximum(input=self.__random_action_probabilities
+                                                                 * self.__random_action_probability_decay,
+                                                           other=self.__minimum_random_action_probabilities)
 
     def close(self) -> None:
         for runner in self.__runners:
             runner.close()
 
     def train(self) -> tuple[float, float]:
-        ready_agents = [agent for agent in self.__agents if agent.buffer_ready]
-        if len(ready_agents) < 1:
+        if not self.__buffer.ready:
             return 0, 0
-        agent_observation_counts = torch.randint(high=len(ready_agents), size=(self.__train_batch_size,)).bincount()
-        (observation_actions,
-         next_observation_actions,
-         immediate_rewards,
-         terminations) = ready_agents[0].random_observations(number=agent_observation_counts[0].item())
-        for agent, observation_count in zip(ready_agents[1:], agent_observation_counts[1:]):
-            (current_observation_actions,
-             current_next_observation_actions,
-             current_immediate_rewards,
-             current_terminations) = agent.random_observations(number=observation_count)
-            observation_actions = torch.concatenate((observation_actions, current_observation_actions))
-            next_observation_actions = torch.concatenate((next_observation_actions, current_next_observation_actions))
-            immediate_rewards = torch.concatenate((immediate_rewards, current_immediate_rewards))
-            terminations = torch.concatenate((terminations, current_terminations))
-
+        observations, actions, rewards, terminations, next_observations \
+            = self.__buffer.random_observations(number=self.__train_batch_size)
         loss_1 = self.__critic.update(
-            observation_actions=observation_actions,
-            immediate_rewards=immediate_rewards,
-            terminations=terminations,
-            next_observations=next_observation_actions[:, :-self.__action_length],
+            observation_actions=torch.concatenate((observations, actions), dim=-1),
+            immediate_rewards=rewards.unsqueeze(dim=-1),
+            terminations=terminations.unsqueeze(dim=-1),
+            next_observations=next_observations,
             discount_factor=self.__discount_factor,
             noise_variance=self.__noise_variance,
             actor=self.__actor,
         )
 
         loss_2 = self.__actor.update(
-            observations=observation_actions[:, :-self.__action_length],
+            observations=observations,
             target_update_proportion=self.__target_update_proportion,
             critic=self.__critic,
         )
