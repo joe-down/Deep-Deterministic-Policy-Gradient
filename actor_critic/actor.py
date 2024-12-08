@@ -27,7 +27,7 @@ class Actor(ActorCriticBase):
             neural_network.append(torch.nn.ReLU())
         neural_network.append(torch.nn.Linear(nn_width, action_length))
         neural_network.append(torch.nn.Sigmoid())
-        super().__init__(load_path=load_path / "action", neural_network=neural_network)
+        super().__init__(load_path=load_path / "action", neural_network=neural_network, action_length=action_length)
         self.__optimiser = torch.optim.AdamW(params=self._parameters)
         self.__target_neural_network = copy.deepcopy(neural_network)
         self.__update_target_network(target_update_proportion=1)

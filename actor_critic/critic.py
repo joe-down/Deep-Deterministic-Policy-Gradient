@@ -16,28 +16,35 @@ class Critic:
                  nn_width: int,
                  nn_depth: int,
                  ) -> None:
-        self.__critics: tuple[SubCritic, SubCritic] = (SubCritic(load_path=load_path / "q1",
-                                                                 observation_length=observation_length,
-                                                                 action_length=action_length,
-                                                                 nn_width=nn_width,
-                                                                 nn_depth=nn_depth,
-                                                                 ),
-                                                       SubCritic(load_path=load_path / "q2",
-                                                                 observation_length=observation_length,
-                                                                 action_length=action_length,
-                                                                 nn_width=nn_width,
-                                                                 nn_depth=nn_depth,
-                                                                 ))
-        self.__loss_function: torch.nn.MSELoss = torch.nn.MSELoss()
+        assert observation_length >= 1
+        assert action_length >= 1
+        assert nn_width >= 1
+        assert nn_depth >= 1
+        self.__sub_critics = (SubCritic(load_path=load_path / "q1",
+                                    observation_length=observation_length,
+                                    action_length=action_length,
+                                    nn_width=nn_width,
+                                    nn_depth=nn_depth,
+                                    ),
+                          SubCritic(load_path=load_path / "q2",
+                                    observation_length=observation_length,
+                                    action_length=action_length,
+                                    nn_width=nn_width,
+                                    nn_depth=nn_depth,
+                                    ))
+        self.__loss_function = torch.nn.MSELoss()
         self.__q1_main = True
+        self.__observation_actions_length = observation_length + action_length
 
     @property
     def state_dicts(self) -> tuple[dict[str, typing.Any], dict[str, typing.Any]]:
-        return self.__critics[0].state_dict, self.__critics[1].state_dict
+        return self.__sub_critics[0].state_dict, self.__sub_critics[1].state_dict
 
     def forward_network(self, observation_actions: torch.Tensor) -> torch.Tensor:
-        q_rewards = torch.concatenate(tuple(critic.forward_network(observations=observation_actions)
-                                            for critic in self.__critics),
+        assert observation_actions.ndim == 2
+        assert observation_actions.shape[-1] == self.__observation_actions_length
+        q_rewards = torch.concatenate(tuple(sub_critic.forward_network(observations=observation_actions)
+                                            for sub_critic in self.__sub_critics),
                                       dim=-1)
         assert q_rewards.shape == (observation_actions.shape[0], 2)
         least_reward_values, least_reward_indexes = q_rewards.min(dim=-1)
@@ -55,15 +62,15 @@ class Critic:
                noise_variance: float,
                actor: "Actor",
                ) -> float:
-        critic: SubCritic = self.__critics[self.__q1_main]
-        loss = critic.update(observation_actions=observation_actions,
-                             immediate_rewards=immediate_rewards,
-                             terminations=terminations,
-                             next_observations=next_observations,
-                             discount_factor=discount_factor,
-                             loss_function=self.__loss_function,
-                             noise_variance=noise_variance,
-                             other_critic=self.__critics[not self.__q1_main],
-                             actor=actor)
+        sub_critic = self.__sub_critics[self.__q1_main]
+        loss = sub_critic.update(observation_actions=observation_actions,
+                                 immediate_rewards=immediate_rewards,
+                                 terminations=terminations,
+                                 next_observations=next_observations,
+                                 discount_factor=discount_factor,
+                                 loss_function=self.__loss_function,
+                                 noise_variance=noise_variance,
+                                 other_critic=self.__sub_critics[not self.__q1_main],
+                                 actor=actor)
         self.__q1_main = not self.__q1_main
         return loss
