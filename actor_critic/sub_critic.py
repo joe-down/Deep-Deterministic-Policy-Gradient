@@ -66,4 +66,6 @@ class SubCritic(ActorCriticBase):
         loss = loss_function(target, prediction)
         loss.backward()
         self.__optimiser.step()
+
+        assert loss.shape == ()
         return loss
