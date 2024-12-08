@@ -57,11 +57,11 @@ class SuperAgent:
             seed=seed + runner_index,
             action_formatter=action_formatter,
         ) for runner_index in range(train_agent_count)]
-        self.__minimum_random_action_probabilities = torch.linspace(
-            random_action_probability,
-            minimum_random_action_probability,
-            train_agent_count,
-        ).unsqueeze(dim=-1)
+        self.__minimum_random_action_probabilities = torch.logspace(
+            torch.log(torch.tensor(random_action_probability)),
+            torch.log(torch.tensor(minimum_random_action_probability)),
+            train_agent_count + 1,
+        ).unsqueeze(dim=-1)[1:]
         self.__random_action_probabilities = torch.ones_like(self.__minimum_random_action_probabilities)
         self.__buffer = Buffer(
             train_agent_count=train_agent_count,
