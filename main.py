@@ -5,9 +5,9 @@ import typing
 import numpy
 import torch.cuda
 
-from agents.actor_critic.actor import Actor
-from agents.super_agent import SuperAgent
-from agents.runner import Runner
+from actor_critic.actor import Actor
+from agent.train_agent import TrainAgent
+from agent.runner import Runner
 import matplotlib.pyplot
 import tqdm
 
@@ -58,7 +58,7 @@ def train_run(
         validation_runner: Runner,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
 ) -> None:
-    super_agent = SuperAgent(train_agent_count=agent_count,
+    super_agent = TrainAgent(train_agent_count=agent_count,
                              save_path=save_path,
                              environment=environment,
                              seed=seed,

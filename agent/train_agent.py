@@ -4,13 +4,13 @@ import typing
 
 import numpy
 import torch
-from agents.actor_critic.actor import Actor
-from agents.actor_critic.critic import Critic
-from agents.buffer import Buffer
-from agents.runner import Runner
+from actor_critic.actor import Actor
+from actor_critic.critic import Critic
+from agent.buffer import Buffer
+from agent.runner import Runner
 
 
-class SuperAgent:
+class TrainAgent:
     def __init__(self,
                  train_agent_count: int,
                  save_path: pathlib.Path,

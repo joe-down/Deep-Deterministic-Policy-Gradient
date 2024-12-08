@@ -3,10 +3,11 @@ import pathlib
 import torch
 import typing
 import copy
-from agents.actor_critic.actor_critic_base import ActorCriticBase
+
+from actor_critic.actor_critic_base import ActorCriticBase
 
 if typing.TYPE_CHECKING:
-    from agents.actor_critic.critic import Critic
+    from actor_critic.critic import Critic
 
 
 class Actor(ActorCriticBase):

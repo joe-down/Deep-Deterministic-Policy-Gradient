@@ -4,7 +4,7 @@ import numpy
 import gymnasium
 import torch
 
-from agents.actor_critic.actor import Actor
+from actor_critic.actor import Actor
 
 
 class Runner:

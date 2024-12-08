@@ -2,8 +2,8 @@ import pathlib
 
 import torch
 
-from agents.actor_critic.actor import Actor
-from agents.actor_critic.actor_critic_base import ActorCriticBase
+from actor_critic.actor import Actor
+from actor_critic.actor_critic_base import ActorCriticBase
 
 
 class SubCritic(ActorCriticBase):

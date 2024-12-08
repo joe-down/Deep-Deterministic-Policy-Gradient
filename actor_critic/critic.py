@@ -2,10 +2,10 @@ import pathlib
 
 import torch
 import typing
-from agents.actor_critic.sub_critic import SubCritic
+from actor_critic.sub_critic import SubCritic
 
 if typing.TYPE_CHECKING:
-    from agents.actor_critic.actor import Actor
+    from actor_critic.actor import Actor
 
 
 class Critic:
