@@ -9,11 +9,11 @@ from agents.actor_critic.actor import Actor
 
 class Runner:
     def __init__(self,
-                 env: gymnasium.Env,
+                 environment: str,
                  seed: int,
-                 action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
+                 action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
                  ) -> None:
-        self.__env = env
+        self.__env = gymnasium.make(environment, render_mode=None)
         self.__seed = seed
         self.__action_formatter = action_formatter
         self.__observation: numpy.ndarray
@@ -26,8 +26,8 @@ class Runner:
     def close(self) -> None:
         self.__env.close()
 
-    def step(self, action: torch.Tensor) -> tuple[bool, float]:
-        action = self.__action_formatter(action).cpu().numpy()
+    def step(self, action: numpy.ndarray) -> tuple[bool, float]:
+        action = self.__action_formatter(action)
         self.__observation, reward, terminated, truncated, info = self.__env.step(action)
         reward = reward.__float__()
         dead = terminated or truncated
@@ -39,6 +39,8 @@ class Runner:
         accumulated_reward = 0
         dead = False
         while not dead:
-            dead, reward = self.step(action=actor.forward_network(observations=torch.tensor(self.__observation)).squeeze())
+            dead, reward = self.step(
+                action=actor.forward_network(observations=torch.tensor(self.__observation)).squeeze().cpu().numpy()
+            )
             accumulated_reward += reward
         return accumulated_reward

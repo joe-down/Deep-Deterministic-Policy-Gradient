@@ -2,7 +2,6 @@ import itertools
 import pathlib
 import typing
 
-import gymnasium
 import numpy
 import torch.cuda
 
@@ -57,7 +56,7 @@ def train_run(
         target_update_proportion: float,
         noise_variance: float,
         validation_runner: Runner,
-        action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
+        action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
 ) -> None:
     super_agent = SuperAgent(train_agent_count=agent_count,
                              save_path=save_path,
@@ -139,11 +138,11 @@ def run(
         seed: int,
         target_update_proportion: float,
         noise_variance: float,
-        action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
+        action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
 ) -> None:
     torch.set_default_device('cuda')
     validation_runner = Runner(
-        env=gymnasium.make(environment, render_mode=None if train else "human"),
+        environment=environment,
         seed=seed,
         action_formatter=action_formatter,
     )
@@ -192,8 +191,8 @@ def main(environment: str, train: bool) -> None:
     match environment:
         case 'CartPole-v1':
             # Environment properties
-            def action_formatter(action: torch.Tensor):
-                return torch.round(action).to(torch.int)
+            def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
+                return numpy.round(action).astype(numpy.int32)
 
             observation_length = 4
             action_length = 1
@@ -214,7 +213,7 @@ def main(environment: str, train: bool) -> None:
             noise_variance = 0
         case 'BipedalWalker-v3':
             # Environment properties
-            def action_formatter(action: torch.Tensor):
+            def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
                 return action * 2 - 1
 
             observation_length = 24

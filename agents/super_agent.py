@@ -1,7 +1,7 @@
+import multiprocessing
 import pathlib
 import typing
 
-import gymnasium
 import numpy
 import torch
 from agents.actor_critic.actor import Actor
@@ -30,7 +30,7 @@ class SuperAgent:
                  action_length: int,
                  target_update_proportion: float,
                  noise_variance: float,
-                 action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
+                 action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
                  ) -> None:
         self.__action_length = action_length
         self.__discount_factor = discount_factor
@@ -52,11 +52,26 @@ class SuperAgent:
             nn_width=actor_nn_width,
             nn_depth=actor_nn_depth,
         )
-        self.__runners = [Runner(
-            env=gymnasium.make(environment, render_mode=None),
-            seed=seed + runner_index,
-            action_formatter=action_formatter,
-        ) for runner_index in range(train_agent_count)]
+        self.__runner_observation_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
+        self.__runner_action_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
+        self.__runner_dead_reward_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
+        runner_loops = [multiprocessing.Process(target=self.runner_loop,
+                                                args=(
+                                                    environment,
+                                                    seed + runner_index,
+                                                    action_formatter,
+                                                    observation_queue,
+                                                    action_queue,
+                                                    dead_reward_queue,
+                                                ))
+                        for runner_index, (observation_queue, action_queue, dead_reward_queue)
+                        in enumerate(zip(
+                            self.__runner_observation_queues,
+                                      self.__runner_action_queues,
+                                      self.__runner_dead_reward_queues,
+                        ))]
+        for runner in runner_loops:
+            runner.start()
         self.__minimum_random_action_probabilities = torch.logspace(
             torch.log(torch.tensor(random_action_probability)),
             torch.log(torch.tensor(minimum_random_action_probability)),
@@ -83,11 +98,13 @@ class SuperAgent:
         return self.__actor
 
     def step(self) -> None:
-        observations = torch.stack([torch.tensor(runner.observation) for runner in self.__runners])
+        observations = torch.stack([torch.tensor(observation_queue.get()) for observation_queue in self.__runner_observation_queues])
         actor_actions = self.actor.forward_network(observations=observations)
         random_action_indexes = torch.rand_like(self.__random_action_probabilities) < self.__random_action_probabilities
         actions = actor_actions * ~random_action_indexes + torch.rand_like(actor_actions) * random_action_indexes
-        runner_steps = [runner.step(action=action.squeeze()) for action, runner in zip(actions, self.__runners)]
+        for action, runner_action_queue in zip(actions, self.__runner_action_queues):
+            runner_action_queue.put(action.squeeze().cpu().detach().numpy())
+        runner_steps = [dead_reward_queue.get() for dead_reward_queue in self.__runner_dead_reward_queues]
         terminations = torch.tensor([dead for dead, reward in runner_steps])
         rewards = torch.tensor([reward for dead, reward in runner_steps])
         self.__buffer.push(observations=observations, actions=actions, rewards=rewards, terminations=terminations)
@@ -121,3 +138,19 @@ class SuperAgent:
         )
 
         return loss_1.__float__(), loss_2.__float__()
+
+    @staticmethod
+    def runner_loop(
+            environment: str,
+            seed: int,
+            action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
+            observation_queue: multiprocessing.Queue,
+            action_queue: multiprocessing.Queue,
+            dead_reward_queue: multiprocessing.Queue,
+    ) -> None:
+        runner = Runner(environment=environment, seed=seed, action_formatter=action_formatter)
+        while True:
+            observation_queue.put(runner.observation)
+            dead, reward = runner.step(action=action_queue.get())
+            dead_reward_queue.put((dead, reward))
+
