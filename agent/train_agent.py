@@ -55,22 +55,22 @@ class TrainAgent:
         self.__runner_observation_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
         self.__runner_action_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
         self.__runner_dead_reward_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
-        runner_loops = [multiprocessing.Process(target=self.runner_loop,
-                                                args=(
-                                                    environment,
-                                                    seed + runner_index,
-                                                    action_formatter,
-                                                    observation_queue,
-                                                    action_queue,
-                                                    dead_reward_queue,
-                                                ))
-                        for runner_index, (observation_queue, action_queue, dead_reward_queue)
-                        in enumerate(zip(
-                            self.__runner_observation_queues,
-                                      self.__runner_action_queues,
-                                      self.__runner_dead_reward_queues,
-                        ))]
-        for runner in runner_loops:
+        self.__runner_loops = [multiprocessing.Process(target=self.runner_loop,
+                                                       args=(
+                                                           environment,
+                                                           seed + runner_index,
+                                                           action_formatter,
+                                                           observation_queue,
+                                                           action_queue,
+                                                           dead_reward_queue,
+                                                       ))
+                               for runner_index, (observation_queue, action_queue, dead_reward_queue)
+                               in enumerate(zip(
+                self.__runner_observation_queues,
+                self.__runner_action_queues,
+                self.__runner_dead_reward_queues,
+            ))]
+        for runner in self.__runner_loops:
             runner.start()
         self.__minimum_random_action_probabilities = torch.logspace(
             torch.log(torch.tensor(random_action_probability)),
@@ -98,7 +98,8 @@ class TrainAgent:
         return self.__actor
 
     def step(self) -> None:
-        observations = torch.stack([torch.tensor(observation_queue.get()) for observation_queue in self.__runner_observation_queues])
+        observations = torch.stack([torch.tensor(observation_queue.get())
+                                    for observation_queue in self.__runner_observation_queues])
         actor_actions = self.actor.forward_network(observations=observations)
         random_action_indexes = torch.rand_like(self.__random_action_probabilities) < self.__random_action_probabilities
         actions = actor_actions * ~random_action_indexes + torch.rand_like(actor_actions) * random_action_indexes
@@ -113,8 +114,8 @@ class TrainAgent:
                                                            other=self.__minimum_random_action_probabilities)
 
     def close(self) -> None:
-        for runner in self.__runners:
-            runner.close()
+        for runner in self.__runner_loops:
+            runner.join()
 
     def train(self) -> tuple[float, float]:
         if not self.__buffer.ready:
@@ -149,8 +150,10 @@ class TrainAgent:
             dead_reward_queue: multiprocessing.Queue,
     ) -> None:
         runner = Runner(environment=environment, seed=seed, action_formatter=action_formatter)
-        while True:
-            observation_queue.put(runner.observation)
-            dead, reward = runner.step(action=action_queue.get())
-            dead_reward_queue.put((dead, reward))
-
+        try:
+            while True:
+                observation_queue.put(runner.observation)
+                dead, reward = runner.step(action=action_queue.get())
+                dead_reward_queue.put((dead, reward))
+        except KeyboardInterrupt:
+            runner.close()
