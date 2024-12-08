@@ -58,7 +58,7 @@ def train_run(
         validation_runner: Runner,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
 ) -> None:
-    super_agent = TrainAgent(train_agent_count=agent_count,
+    train_agent = TrainAgent(train_agent_count=agent_count,
                              save_path=save_path,
                              environment=environment,
                              seed=seed,
@@ -78,7 +78,7 @@ def train_run(
                              noise_variance=noise_variance,
                              action_formatter=action_formatter,
                              )
-    best_state_dicts = super_agent.state_dicts
+    best_state_dicts = train_agent.state_dicts
     figure = matplotlib.pyplot.figure()
     loss_subplot = figure.add_subplot(2, 2, 1)
     losses = []
@@ -95,21 +95,21 @@ def train_run(
                 with torch.inference_mode():
                     loss_subplot.plot(losses)
                     action_loss_subplot.plot(action_losses)
-                    survival_times.append(numpy.mean([validation_runner.run_full(super_agent.actor)
+                    survival_times.append(numpy.mean([validation_runner.run_full(train_agent.actor)
                                                       for _ in range(validation_repeats)]))
                     survival_times_subplot.plot(survival_times)
-                    random_probabilities.append(super_agent.random_action_probabilities)
+                    random_probabilities.append(train_agent.random_action_probabilities)
                     random_probability_subplot.plot(random_probabilities)
                     figure.canvas.draw()
                     figure.canvas.flush_events()
                     if len(survival_times) < 2 or survival_times[-1] >= max(survival_times[:-1]):
-                        best_state_dicts = super_agent.state_dicts
-            super_agent.step()
-            q_loss, action_loss = super_agent.train()
+                        best_state_dicts = train_agent.state_dicts
+            train_agent.step()
+            q_loss, action_loss = train_agent.train()
             losses.append(q_loss)
             action_losses.append(action_loss)
     except KeyboardInterrupt:
-        super_agent.close()
+        train_agent.close()
         torch.save(best_state_dicts[0][0], save_path / "q1")
         torch.save(best_state_dicts[0][1], save_path / "q2")
         torch.save(best_state_dicts[1], save_path / "action")
