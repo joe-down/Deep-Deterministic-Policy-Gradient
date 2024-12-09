@@ -85,6 +85,11 @@ def train_run(
                              noise_variance=noise_variance,
                              action_formatter=action_formatter,
                              )
+    validation_runner = Runner(
+        environment=environment,
+        seed=seed,
+        action_formatter=action_formatter,
+    )
     best_state_dicts = train_agent.state_dicts
     figure = matplotlib.pyplot.figure()
     loss_subplot = figure.add_subplot(2, 2, 1)
