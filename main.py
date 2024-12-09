@@ -204,12 +204,12 @@ def main(environment: str, train: bool) -> None:
             observation_length = 4
             action_length = 1
             # Model parameters
-            actor_nn_width = 2 ** 3
-            actor_nn_depth = 2 ** 3
-            critic_nn_width = 2 ** 3
-            critic_nn_depth = 2 ** 3
+            actor_nn_width = observation_length
+            actor_nn_depth = 2 ** 1
+            critic_nn_width = observation_length + action_length
+            critic_nn_depth = 2 ** 1
             # Train parameters
-            train_batch_size = 2 ** 21
+            train_batch_size = 2 ** 6
             agent_count = 2 ** 6
             buffer_size = 2 ** 22
             validation_interval = 100
@@ -217,7 +217,7 @@ def main(environment: str, train: bool) -> None:
             discount_factor = 0.99
             random_action_probability_decay = 1 - 1 / 2 ** 0
             target_update_proportion = 2 ** 0
-            noise_variance = 2 ** -10
+            noise_variance = 2 ** -4
         case 'BipedalWalker-v3':
             # Environment properties
             def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
