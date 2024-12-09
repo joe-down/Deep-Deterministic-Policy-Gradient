@@ -123,17 +123,17 @@ class TrainAgent:
         observations, actions, rewards, terminations, next_observations \
             = self.__buffer.random_observations(number=self.__train_batch_size)
         loss_1 = self.__critic.update(
-            observation_actions=torch.concatenate((observations, actions), dim=-1),
-            immediate_rewards=rewards.unsqueeze(dim=-1),
-            terminations=terminations.unsqueeze(dim=-1),
-            next_observations=next_observations,
+            observation_actions=torch.concatenate((observations.detach(), actions.detach()), dim=-1),
+            immediate_rewards=rewards.detach().unsqueeze(dim=-1),
+            terminations=terminations.detach().unsqueeze(dim=-1),
+            next_observations=next_observations.detach(),
             discount_factor=self.__discount_factor,
             noise_variance=self.__noise_variance,
             actor=self.__actor,
         )
 
         loss_2 = self.__actor.update(
-            observations=observations,
+            observations=observations.detach(),
             target_update_proportion=self.__target_update_proportion,
             critic=self.__critic,
         )

@@ -52,7 +52,7 @@ class SubCritic(ActorCriticBase):
                 == next_observations.shape[0])
         assert 0 <= discount_factor <= 1
         assert noise_variance >= 0
-        noiseless_best_next_actions = actor.forward_target_network(observations=next_observations)
+        noiseless_best_next_actions = actor.forward_target_network(observations=next_observations).detach()
         noise = torch.randn(size=noiseless_best_next_actions.shape) * noise_variance ** 0.5
         noisy_best_next_actions = (noiseless_best_next_actions + noise)
         best_next_observation_actions = torch.concatenate((next_observations, noisy_best_next_actions), dim=1)
