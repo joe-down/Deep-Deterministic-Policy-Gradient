@@ -19,7 +19,9 @@ def validation_run(
         action_length: int,
         actor_nn_width: int,
         actor_nn_depth: int,
-        runner: Runner,
+        environment: str,
+        seed: int,
+        action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
 ) -> None:
     actor = Actor(load_path=load_path,
                   observation_length=observation_length,
@@ -27,6 +29,12 @@ def validation_run(
                   nn_width=actor_nn_width,
                   nn_depth=actor_nn_depth,
                   )
+    runner = Runner(
+        environment=environment,
+        seed=seed,
+        action_formatter=action_formatter,
+        render_mode="human",
+    )
     try:
         while True:
             print(runner.run_full(actor=actor))
@@ -55,7 +63,6 @@ def train_run(
         seed: int,
         target_update_proportion: float,
         noise_variance: float,
-        validation_runner: Runner,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
 ) -> None:
     train_agent = TrainAgent(train_agent_count=agent_count,
@@ -141,12 +148,6 @@ def run(
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
 ) -> None:
     torch.set_default_device('cuda')
-    validation_runner = Runner(
-        environment=environment,
-        seed=seed,
-        action_formatter=action_formatter,
-        render_mode="human",
-    )
     if train:
         train_run(
             agent_count=agent_count,
@@ -169,8 +170,7 @@ def run(
             seed=seed + 1,
             target_update_proportion=target_update_proportion,
             noise_variance=noise_variance,
-            validation_runner=validation_runner,
-            action_formatter=action_formatter
+            action_formatter=action_formatter,
         )
     else:
         validation_run(
@@ -179,9 +179,10 @@ def run(
             action_length=action_length,
             actor_nn_width=actor_nn_width,
             actor_nn_depth=actor_nn_depth,
-            runner=validation_runner,
+            environment=environment,
+            seed=seed,
+            action_formatter=action_formatter,
         )
-    validation_runner.close()
 
 
 def main(environment: str, train: bool) -> None:
