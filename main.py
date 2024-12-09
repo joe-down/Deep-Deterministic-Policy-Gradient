@@ -68,7 +68,7 @@ def train_run(
     train_agent = TrainAgent(train_agent_count=agent_count,
                              save_path=save_path,
                              environment=environment,
-                             seed=seed,
+                             seed=seed + 1,
                              actor_nn_width=actor_nn_width,
                              actor_nn_depth=actor_nn_depth,
                              critic_nn_width=critic_nn_width,
