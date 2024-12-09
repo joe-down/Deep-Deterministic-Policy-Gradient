@@ -12,8 +12,9 @@ class Runner:
                  environment: str,
                  seed: int,
                  action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
+                 render_mode: str = None,
                  ) -> None:
-        self.__env = gymnasium.make(environment, render_mode=None)
+        self.__env = gymnasium.make(environment, render_mode=render_mode)
         self.__seed = seed
         self.__action_formatter = action_formatter
         self.__observation: numpy.ndarray

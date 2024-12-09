@@ -145,6 +145,7 @@ def run(
         environment=environment,
         seed=seed,
         action_formatter=action_formatter,
+        render_mode="human",
     )
     if train:
         train_run(
