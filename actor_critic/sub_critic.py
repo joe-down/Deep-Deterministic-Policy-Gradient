@@ -28,8 +28,12 @@ class SubCritic(ActorCriticBase):
             neural_network.append(torch.nn.Linear(nn_width, nn_width))
             neural_network.append(torch.nn.ReLU())
         neural_network.append(torch.nn.Linear(nn_width, 1))
-        super().__init__(load_path=load_path, neural_network=neural_network, action_length=self.__action_length)
+        super().__init__(load_path=load_path, neural_network=neural_network)
         self.__optimiser = torch.optim.AdamW(params=self._parameters)
+
+    @property
+    def _nn_output_length(self) -> int:
+        return 1
 
     def update(self,
                observation_actions: torch.Tensor,
