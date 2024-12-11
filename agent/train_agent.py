@@ -120,10 +120,10 @@ class TrainAgent:
     def train(self, iteration: int) -> tuple[float, float]:
         if not self.__buffer.ready:
             return 0, 0
-        update_actor = iteration % 2 == 0
+        update_actor = True
         update_critic = True
-        update_actor_target = iteration % 2 == 0
-        update_critic_target = iteration % 2 == 0
+        update_actor_target = True
+        update_critic_target = True
         observations, actions, rewards, terminations, next_observations \
             = self.__buffer.random_observations(number=self.__train_batch_size)
         loss_1 = self.__critic.update(

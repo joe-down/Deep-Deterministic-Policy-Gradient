@@ -217,9 +217,9 @@ def main(environment: str, train: bool) -> None:
             validation_interval = 100
             validation_repeats = 100
             discount_factor = 0.99
-            random_action_probability_decay = 1 - 1 / 2 ** 0
-            target_update_proportion = 2 ** 0
-            noise_variance = 2 ** -4
+            random_action_probability_decay = 0
+            target_update_proportion = 2 ** -5
+            noise_variance = 2 ** -3
         case 'BipedalWalker-v3':
             # Environment properties
             def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
