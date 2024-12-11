@@ -2,14 +2,12 @@ import itertools
 import pathlib
 import typing
 
-import gymnasium
 import numpy
 import torch.cuda
 
-from agents.actor_critic.actor import Actor
-from agents.basic_agent import BasicAgent
-from agents.super_agent import SuperAgent
-from agents.runner import Runner
+from actor_critic.actor import Actor
+from agent.train_agent import TrainAgent
+from agent.runner import Runner
 import matplotlib.pyplot
 import tqdm
 
@@ -21,7 +19,9 @@ def validation_run(
         action_length: int,
         actor_nn_width: int,
         actor_nn_depth: int,
-        runner: Runner,
+        environment: str,
+        seed: int,
+        action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
 ) -> None:
     actor = Actor(load_path=load_path,
                   observation_length=observation_length,
@@ -29,6 +29,12 @@ def validation_run(
                   nn_width=actor_nn_width,
                   nn_depth=actor_nn_depth,
                   )
+    runner = Runner(
+        environment=environment,
+        seed=seed,
+        action_formatter=action_formatter,
+        render_mode="human",
+    )
     try:
         while True:
             print(runner.run_full(actor=actor))
@@ -57,13 +63,12 @@ def train_run(
         seed: int,
         target_update_proportion: float,
         noise_variance: float,
-        validation_runner: Runner,
-        action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
+        action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
 ) -> None:
-    super_agent = SuperAgent(train_agent_count=agent_count,
+    train_agent = TrainAgent(train_agent_count=agent_count,
                              save_path=save_path,
                              environment=environment,
-                             seed=seed,
+                             seed=seed + 1,
                              actor_nn_width=actor_nn_width,
                              actor_nn_depth=actor_nn_depth,
                              critic_nn_width=critic_nn_width,
@@ -80,7 +85,12 @@ def train_run(
                              noise_variance=noise_variance,
                              action_formatter=action_formatter,
                              )
-    best_state_dicts = super_agent.state_dicts
+    validation_runner = Runner(
+        environment=environment,
+        seed=seed,
+        action_formatter=action_formatter,
+    )
+    best_state_dicts = train_agent.state_dicts
     figure = matplotlib.pyplot.figure()
     loss_subplot = figure.add_subplot(2, 2, 1)
     losses = []
@@ -97,23 +107,25 @@ def train_run(
                 with torch.inference_mode():
                     loss_subplot.plot(losses)
                     action_loss_subplot.plot(action_losses)
-                    survival_times.append(numpy.mean([validation_runner.run_full(super_agent.actor)
+                    survival_times.append(numpy.mean([validation_runner.run_full(train_agent.actor)
                                                       for _ in range(validation_repeats)]))
                     survival_times_subplot.plot(survival_times)
-                    random_probabilities.append(super_agent.random_action_probabilities)
+                    random_probabilities.append(train_agent.random_action_probabilities)
                     random_probability_subplot.plot(random_probabilities)
                     figure.canvas.draw()
                     figure.canvas.flush_events()
                     if len(survival_times) < 2 or survival_times[-1] >= max(survival_times[:-1]):
-                        best_state_dicts = super_agent.state_dicts
-            super_agent.step()
-            q_loss, action_loss = super_agent.train()
-            losses.append(q_loss)
-            action_losses.append(action_loss)
+                        best_state_dicts = train_agent.state_dicts
+            train_agent.step()
+            q_loss, action_loss = train_agent.train(iteration=iteration)
+            if q_loss is not None:
+                losses.append(q_loss)
+            if action_loss is not None:
+                action_losses.append(action_loss)
     except KeyboardInterrupt:
-        super_agent.close()
-        torch.save(best_state_dicts[0][0], save_path / "q1")
-        torch.save(best_state_dicts[0][1], save_path / "q2")
+        train_agent.close()
+        for state_dict_index, state_dict in enumerate(best_state_dicts[0]):
+            torch.save(state_dict, save_path / f"q{state_dict_index}")
         torch.save(best_state_dicts[1], save_path / "action")
         print("models saved")
 
@@ -140,15 +152,9 @@ def run(
         seed: int,
         target_update_proportion: float,
         noise_variance: float,
-        action_formatter: typing.Callable[[torch.Tensor], torch.Tensor],
+        action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
 ) -> None:
     torch.set_default_device('cuda')
-    validation_runner = Runner(
-        env=gymnasium.make(environment, render_mode=None if train else "human"),
-        agent=BasicAgent(),
-        seed=seed,
-        action_formatter=action_formatter,
-    )
     if train:
         train_run(
             agent_count=agent_count,
@@ -171,8 +177,7 @@ def run(
             seed=seed + 1,
             target_update_proportion=target_update_proportion,
             noise_variance=noise_variance,
-            validation_runner=validation_runner,
-            action_formatter=action_formatter
+            action_formatter=action_formatter,
         )
     else:
         validation_run(
@@ -181,42 +186,43 @@ def run(
             action_length=action_length,
             actor_nn_width=actor_nn_width,
             actor_nn_depth=actor_nn_depth,
-            runner=validation_runner,
+            environment=environment,
+            seed=seed,
+            action_formatter=action_formatter,
         )
-    validation_runner.close()
 
 
 def main(environment: str, train: bool) -> None:
     model_root = pathlib.Path("models")
     random_action_probability = 1
-    minimum_random_action_probability = 0.01
+    minimum_random_action_probability = 0
     seed = 42
     match environment:
         case 'CartPole-v1':
             # Environment properties
-            def action_formatter(action: torch.Tensor):
-                return torch.round(action).to(torch.int)
+            def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
+                return numpy.round(action).astype(numpy.int32)
 
             observation_length = 4
             action_length = 1
             # Model parameters
-            actor_nn_width = 2 ** 3
+            actor_nn_width = observation_length
             actor_nn_depth = 2 ** 1
-            critic_nn_width = 2 ** 3
+            critic_nn_width = observation_length + action_length
             critic_nn_depth = 2 ** 1
             # Train parameters
-            train_batch_size = 2 ** 22
-            agent_count = 2 ** 4
-            buffer_size = train_batch_size
+            train_batch_size = 2 ** 6
+            agent_count = 2 ** 6
+            buffer_size = 2 ** 22
             validation_interval = 100
             validation_repeats = 100
             discount_factor = 0.99
-            random_action_probability_decay = 1 - 1 / 2 ** 20
+            random_action_probability_decay = 1 - 1 / 2 ** 0
             target_update_proportion = 2 ** 0
-            noise_variance = 0
+            noise_variance = 2 ** -4
         case 'BipedalWalker-v3':
             # Environment properties
-            def action_formatter(action: torch.Tensor):
+            def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
                 return action * 2 - 1
 
             observation_length = 24
