@@ -117,13 +117,15 @@ def train_run(
                     if len(survival_times) < 2 or survival_times[-1] >= max(survival_times[:-1]):
                         best_state_dicts = train_agent.state_dicts
             train_agent.step()
-            q_loss, action_loss = train_agent.train()
-            losses.append(q_loss)
-            action_losses.append(action_loss)
+            q_loss, action_loss = train_agent.train(iteration=iteration)
+            if q_loss is not None:
+                losses.append(q_loss)
+            if action_loss is not None:
+                action_losses.append(action_loss)
     except KeyboardInterrupt:
         train_agent.close()
-        torch.save(best_state_dicts[0][0], save_path / "q1")
-        torch.save(best_state_dicts[0][1], save_path / "q2")
+        for state_dict_index, state_dict in enumerate(best_state_dicts[0]):
+            torch.save(state_dict, save_path / f"q{state_dict_index}")
         torch.save(best_state_dicts[1], save_path / "action")
         print("models saved")
 
@@ -193,7 +195,7 @@ def run(
 def main(environment: str, train: bool) -> None:
     model_root = pathlib.Path("models")
     random_action_probability = 1
-    minimum_random_action_probability = 0.01
+    minimum_random_action_probability = 0
     seed = 42
     match environment:
         case 'CartPole-v1':

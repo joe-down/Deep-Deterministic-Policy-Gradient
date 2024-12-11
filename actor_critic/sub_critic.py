@@ -1,8 +1,5 @@
 import pathlib
-
 import torch
-
-from actor_critic.actor import Actor
 from actor_critic.actor_critic_base import ActorCriticBase
 
 
@@ -39,34 +36,29 @@ class SubCritic(ActorCriticBase):
                observation_actions: torch.Tensor,
                immediate_rewards: torch.Tensor,
                terminations: torch.Tensor,
-               next_observations: torch.Tensor,
+               worst_next_observation_action_qs: torch.Tensor,
                discount_factor: float,
                loss_function: torch.nn.MSELoss,
-               noise_variance: float,
-               other_critic: "SubCritic",
-               actor: "Actor",
+               target_update_proportion: float,
+               update_target_networks: bool,
                ) -> float:
         assert observation_actions.shape[1:] == (self.__observation_length + self.__action_length,)
         assert immediate_rewards.shape[1:] == (1,)
         assert terminations.shape[1:] == (1,)
-        assert next_observations.shape[1:] == (self.__observation_length,)
+        assert worst_next_observation_action_qs.shape[1:] == (1,)
         assert (observation_actions.shape[0]
                 == immediate_rewards.shape[0]
                 == terminations.shape[0]
-                == next_observations.shape[0])
+                == worst_next_observation_action_qs.shape[0])
         assert 0 <= discount_factor <= 1
-        assert noise_variance >= 0
-        noiseless_best_next_actions = actor.forward_target_network(observations=next_observations).detach()
-        noise = torch.randn(size=noiseless_best_next_actions.shape) * noise_variance ** 0.5
-        noisy_best_next_actions = torch.clamp(input=noiseless_best_next_actions + noise, min=0, max=1)
-        assert noisy_best_next_actions.min() >= 0 and noisy_best_next_actions.max() <= 1
-        best_next_observation_actions = torch.concatenate((next_observations, noisy_best_next_actions), dim=1)
-        target = (immediate_rewards + discount_factor * (1 - terminations)
-                  * other_critic.forward_network(best_next_observation_actions))
+        assert 0 < target_update_proportion <= 1
+        target = (immediate_rewards + discount_factor * (1 - terminations) * worst_next_observation_action_qs)
         prediction = self.forward_network(observation_actions)
         self.__optimiser.zero_grad()
         loss = loss_function(target, prediction)
         loss.backward()
         self.__optimiser.step()
+        if update_target_networks:
+            self._update_target_network(target_update_proportion=target_update_proportion)
         assert loss.shape == ()
         return loss

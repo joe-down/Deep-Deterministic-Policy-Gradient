@@ -86,7 +86,7 @@ class TrainAgent:
         )
 
     @property
-    def state_dicts(self) -> tuple[tuple[dict[str, typing.Any], dict[str, typing.Any]], dict[str, typing.Any]]:
+    def state_dicts(self) -> tuple[list[dict[str, typing.Any]], dict[str, typing.Any]]:
         return self.__critic.state_dicts, self.__actor.state_dict
 
     @property
@@ -117,9 +117,13 @@ class TrainAgent:
         for runner in self.__runner_loops:
             runner.join()
 
-    def train(self) -> tuple[float, float]:
+    def train(self, iteration: int) -> tuple[float, float]:
         if not self.__buffer.ready:
             return 0, 0
+        update_actor = iteration % 2 == 0
+        update_critic = True
+        update_actor_target = iteration % 2 == 0
+        update_critic_target = iteration % 2 == 0
         observations, actions, rewards, terminations, next_observations \
             = self.__buffer.random_observations(number=self.__train_batch_size)
         loss_1 = self.__critic.update(
@@ -130,15 +134,16 @@ class TrainAgent:
             discount_factor=self.__discount_factor,
             noise_variance=self.__noise_variance,
             actor=self.__actor,
-        )
-
+            target_update_proportion=self.__target_update_proportion,
+            update_target_networks=update_critic_target,
+        ).__float__() if update_critic else None
         loss_2 = self.__actor.update(
             observations=observations.detach(),
             target_update_proportion=self.__target_update_proportion,
             critic=self.__critic,
-        )
-
-        return loss_1.__float__(), loss_2.__float__()
+            update_target_network=update_actor_target,
+        ).__float__() if update_actor else None
+        return loss_1, loss_2
 
     @staticmethod
     def runner_loop(
