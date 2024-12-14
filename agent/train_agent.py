@@ -31,6 +31,7 @@ class TrainAgent:
                  target_update_proportion: float,
                  noise_variance: float,
                  action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
+                 reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
                  ) -> None:
         self.__action_length = action_length
         self.__discount_factor = discount_factor
@@ -63,6 +64,7 @@ class TrainAgent:
                                                            observation_queue,
                                                            action_queue,
                                                            dead_reward_queue,
+                                                           reward_function,
                                                        ))
                                for runner_index, (observation_queue, action_queue, dead_reward_queue)
                                in enumerate(zip(
@@ -153,12 +155,18 @@ class TrainAgent:
             observation_queue: multiprocessing.Queue,
             action_queue: multiprocessing.Queue,
             dead_reward_queue: multiprocessing.Queue,
+            reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
     ) -> None:
-        runner = Runner(environment=environment, seed=seed, action_formatter=action_formatter)
+        runner = Runner(
+            environment=environment,
+            seed=seed,
+            action_formatter=action_formatter,
+            reward_function=reward_function,
+        )
         try:
             while True:
                 observation_queue.put(runner.observation)
-                dead, reward = runner.step(action=action_queue.get())
-                dead_reward_queue.put((dead, reward))
+                dead, reward, processed_reward = runner.step(action=action_queue.get())
+                dead_reward_queue.put((dead, processed_reward))
         except KeyboardInterrupt:
             runner.close()

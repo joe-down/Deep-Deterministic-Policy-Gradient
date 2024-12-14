@@ -22,6 +22,7 @@ def validation_run(
         environment: str,
         seed: int,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
+        reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
 ) -> None:
     actor = Actor(load_path=load_path,
                   observation_length=observation_length,
@@ -34,6 +35,7 @@ def validation_run(
         seed=seed,
         action_formatter=action_formatter,
         render_mode="human",
+        reward_function=reward_function,
     )
     try:
         while True:
@@ -64,6 +66,7 @@ def train_run(
         target_update_proportion: float,
         noise_variance: float,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
+        reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
 ) -> None:
     train_agent = TrainAgent(train_agent_count=agent_count,
                              save_path=save_path,
@@ -84,11 +87,13 @@ def train_run(
                              target_update_proportion=target_update_proportion,
                              noise_variance=noise_variance,
                              action_formatter=action_formatter,
+                             reward_function=reward_function,
                              )
     validation_runner = Runner(
         environment=environment,
         seed=seed,
         action_formatter=action_formatter,
+        reward_function=reward_function,
     )
     best_state_dicts = train_agent.state_dicts
     figure = matplotlib.pyplot.figure()
@@ -153,6 +158,7 @@ def run(
         target_update_proportion: float,
         noise_variance: float,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
+        reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
 ) -> None:
     torch.set_default_device('cuda')
     if train:
@@ -178,6 +184,7 @@ def run(
             target_update_proportion=target_update_proportion,
             noise_variance=noise_variance,
             action_formatter=action_formatter,
+            reward_function=reward_function,
         )
     else:
         validation_run(
@@ -189,6 +196,7 @@ def run(
             environment=environment,
             seed=seed,
             action_formatter=action_formatter,
+            reward_function=reward_function,
         )
 
 
@@ -197,6 +205,10 @@ def main(environment: str, train: bool) -> None:
     random_action_probability = 1
     minimum_random_action_probability = 0
     seed = 42
+
+    def reward_function(observation: numpy.ndarray, reward, dead):
+        return reward
+
     match environment:
         case 'CartPole-v1':
             # Environment properties
@@ -220,6 +232,31 @@ def main(environment: str, train: bool) -> None:
             random_action_probability_decay = 0
             target_update_proportion = 2 ** -5
             noise_variance = 2 ** -3
+        case 'Acrobot-v1':
+            # Environment properties
+            def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
+                return numpy.round(action * 3 - 0.5).astype(numpy.int32)
+
+            def reward_function(observation: numpy.ndarray, reward, dead):
+                return -10 * observation[0] + observation[2] if not dead else 100
+
+            observation_length = 6
+            action_length = 1
+            # Model parameters
+            actor_nn_width = observation_length
+            actor_nn_depth = 2 ** 1
+            critic_nn_width = observation_length + action_length
+            critic_nn_depth = 2 ** 1
+            # Train parameters
+            train_batch_size = 2 ** 6
+            agent_count = 2 ** 6
+            buffer_size = 2 ** 22
+            validation_interval = 100
+            validation_repeats = 10
+            discount_factor = 0.99
+            random_action_probability_decay = 0
+            target_update_proportion = 1
+            noise_variance = 0
         case 'BipedalWalker-v3':
             # Environment properties
             def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
@@ -271,6 +308,7 @@ def main(environment: str, train: bool) -> None:
         target_update_proportion=target_update_proportion,
         noise_variance=noise_variance,
         action_formatter=action_formatter,
+        reward_function=reward_function,
         )
 
 
