@@ -74,11 +74,11 @@ class TrainAgent:
             ))]
         for runner in self.__runner_loops:
             runner.start()
-        self.__minimum_random_action_probabilities = torch.linspace(
+        self.__minimum_random_action_probabilities = (torch.linspace(
             random_action_probability,
             minimum_random_action_probability,
-            train_agent_count + 1,
-        ).unsqueeze(dim=-1)[1:]
+            train_agent_count,
+        ) if train_agent_count != 1 else torch.tensor([minimum_random_action_probability])).unsqueeze(dim=-1)
         self.__random_action_probabilities = torch.ones_like(self.__minimum_random_action_probabilities)
         self.__buffer = Buffer(
             train_agent_count=train_agent_count,
