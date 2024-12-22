@@ -206,7 +206,7 @@ def main(environment: str, train: bool) -> None:
     minimum_random_action_probability = 0
     seed = 42
 
-    def reward_function(observation: numpy.ndarray, reward, dead):
+    def reward_function(observation: numpy.ndarray, reward: float, dead: bool) -> float:
         return reward
 
     match environment:
@@ -237,7 +237,7 @@ def main(environment: str, train: bool) -> None:
             def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
                 return numpy.round(action * 3 - 0.5).astype(numpy.int32)
 
-            def reward_function(observation: numpy.ndarray, reward, dead):
+            def reward_function(observation: numpy.ndarray, reward: float, dead: bool) -> float:
                 return -10 * observation[0] + observation[2] if not dead else 100
 
             observation_length = 6
