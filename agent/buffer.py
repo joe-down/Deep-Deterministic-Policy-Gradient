@@ -34,17 +34,17 @@ class Buffer:
              observations: torch.Tensor,
              actions: torch.Tensor,
              rewards: torch.Tensor,
-             terminations=torch.Tensor,
+             terminations: torch.Tensor,
              ) -> None:
         assert observations.shape == (self.__train_agent_count, self.__observation_length)
         assert actions.shape == (self.__train_agent_count, self.__action_length)
         assert rewards.shape == (self.__train_agent_count,)
         assert terminations.shape == (self.__train_agent_count,)
 
-        self.__observations[self.__next_index] = observations.detach()
-        self.__actions[self.__next_index] = actions.detach()
-        self.__rewards[self.__next_index] = rewards.detach()
-        self.__terminations[self.__next_index] = terminations.detach()
+        self.__observations[self.__next_index] = observations
+        self.__actions[self.__next_index] = actions
+        self.__rewards[self.__next_index] = rewards
+        self.__terminations[self.__next_index] = terminations
 
         self.__next_index = (self.__next_index + 1) % self.__buffer_size
         self.__entry_count = self.__next_index if self.__entry_count < self.__next_index else self.__buffer_size
