@@ -69,21 +69,19 @@ class Critic:
                target_update_proportion: float,
                update_target_networks: bool,
                ) -> float:
-        noiseless_best_next_actions = actor.forward_target_network(observations=next_observations).detach()
+        noiseless_best_next_actions = actor.forward_target_network(observations=next_observations)
         noise = torch.randn(size=noiseless_best_next_actions.shape) * noise_variance ** 0.5
         noisy_best_next_actions = torch.clamp(input=noiseless_best_next_actions + noise, min=0, max=1)
         noisy_best_next_observation_actions = torch.concatenate((next_observations, noisy_best_next_actions),
                                                                 dim=1)
         worst_next_observation_action_qs = self.forward_target_network(noisy_best_next_observation_actions)
+        targets = (immediate_rewards + discount_factor * (1 - terminations) * worst_next_observation_action_qs)
         loss = sum(sub_critic.update(
             observation_actions=observation_actions.detach(),
-            immediate_rewards=immediate_rewards.detach(),
-            terminations=terminations.detach(),
-            discount_factor=discount_factor,
+            targets=targets.detach(),
             loss_function=self.__loss_function,
             target_update_proportion=target_update_proportion,
             update_target_networks=update_target_networks,
-            worst_next_observation_action_qs=worst_next_observation_action_qs.detach(),
         ) for sub_critic in self.__sub_critics)
         return loss
 
