@@ -71,8 +71,12 @@ class Buffer:
             assert i * self.__entry_count + self.__incomplete_index not in valid_buffer_indexes
 
         random_valid_buffer_indexes = valid_buffer_indexes[torch.randperm(valid_buffer_indexes.size(0))[:number]]
-        entry_indexes = random_valid_buffer_indexes // self.__train_agent_count
-        agent_indexes = random_valid_buffer_indexes // self.__entry_count
+        repeated_random_valid_buffer_indexes = torch.concatenate(
+            (random_valid_buffer_indexes.repeat(number // random_valid_buffer_indexes.size(0)),
+             random_valid_buffer_indexes[:number % random_valid_buffer_indexes.size(0)]),
+        )
+        entry_indexes = repeated_random_valid_buffer_indexes // self.__train_agent_count
+        agent_indexes = repeated_random_valid_buffer_indexes // self.__entry_count
 
         observations = self.__observations[entry_indexes, agent_indexes]
         actions = self.__actions[entry_indexes, agent_indexes]
