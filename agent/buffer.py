@@ -49,9 +49,19 @@ class Buffer:
         self.__next_index = (self.__next_index + 1) % self.__buffer_size
         self.__entry_count = self.__next_index if self.__entry_count < self.__next_index else self.__buffer_size
 
+    @staticmethod
+    @torch.no_grad()
+    def __history_index(tensor: torch.Tensor,
+                        entry_indexes: torch.Tensor,
+                        agent_indexes: torch.Tensor,
+                        history: int,
+                        ) -> torch.Tensor:
+        return torch.stack([tensor[entry_indexes - i, agent_indexes] for i in range(history)], dim=1)
+
     @torch.no_grad()
     def random_observations(self,
                             number: int,
+                            history: int
                             ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         assert self.ready
         assert number >= 1
@@ -78,15 +88,24 @@ class Buffer:
         entry_indexes = repeated_random_valid_buffer_indexes // self.__train_agent_count
         agent_indexes = repeated_random_valid_buffer_indexes // self.__entry_count
 
-        observations = self.__observations[entry_indexes, agent_indexes]
-        actions = self.__actions[entry_indexes, agent_indexes]
+        observations = self.__history_index(tensor=self.__observations,
+                                            entry_indexes=entry_indexes,
+                                            agent_indexes=agent_indexes,
+                                            history=history)
+        actions = self.__history_index(tensor=self.__actions,
+                                       entry_indexes=entry_indexes,
+                                       agent_indexes=agent_indexes,
+                                       history=history)
         rewards = self.__rewards[entry_indexes, agent_indexes]
         terminations = self.__terminations[entry_indexes, agent_indexes]
-        next_observations = self.__observations[(entry_indexes + 1) % self.__buffer_size, agent_indexes]
+        next_observations = self.__history_index(tensor=self.__observations,
+                                                 entry_indexes=(entry_indexes + 1) % self.__buffer_size,
+                                                 agent_indexes=agent_indexes,
+                                                 history=history)
 
-        assert observations.shape == (number, self.__observation_length)
-        assert actions.shape == (number, self.__action_length)
+        assert observations.shape == (number, history, self.__observation_length)
+        assert actions.shape == (number, history, self.__action_length)
         assert rewards.shape == (number,)
         assert terminations.shape == (number,)
-        assert next_observations.shape == (number, self.__observation_length)
+        assert next_observations.shape == (number, history, self.__observation_length)
         return observations, actions, rewards, terminations, next_observations
