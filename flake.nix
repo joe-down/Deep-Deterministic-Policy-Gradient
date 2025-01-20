@@ -1,5 +1,5 @@
 {
-  inputs.nixpkgs.url = "nixpkgs/nixos-24.05";
+  inputs.nixpkgs.url = "nixpkgs/nixos-24.11";
   outputs = { self, nixpkgs }:
     let
       supportedSystems =
@@ -16,7 +16,7 @@
       devShells = forEachSupportedSystem ({ pkgs }: {
         default = pkgs.mkShell {
           packages = with pkgs; [
-            (pkgs.python3.withPackages (python-pkgs: [
+            (pkgs.python311.withPackages (python-pkgs: [
               #Gymnasium
               python-pkgs.gymnasium
               python-pkgs.pybox2d

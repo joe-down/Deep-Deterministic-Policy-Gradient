@@ -1,5 +1,5 @@
 numpy~=1.26.4
-torch~=2.3.0+cu121
-gymnasium~=0.29.1
-matplotlib~=3.8.4
-tqdm~=4.66.4
+torch~=2.5.1+cu121
+gymnasium~=1.0.0
+matplotlib~=3.9.2
+tqdm~=4.66.5
