@@ -32,6 +32,7 @@ class Actor(ActorCriticBase):
         self.__optimiser = torch.optim.AdamW(params=self._parameters)
 
     @typing_extensions.override
+    @property
     def _nn_output_shape(self):
         return (self.__action_length,)
 

@@ -1,5 +1,6 @@
 import copy
 import pathlib
+import abc
 
 import torch
 import typing
@@ -26,6 +27,7 @@ class ActorCriticBase:
         return self.__neural_network.state_dict()
 
     @property
+    @abc.abstractmethod
     def _nn_output_shape(self) -> tuple[int, ...]:
         raise NotImplementedError
 
