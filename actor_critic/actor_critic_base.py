@@ -26,7 +26,7 @@ class ActorCriticBase:
         return self.__neural_network.state_dict()
 
     @property
-    def _nn_output_length(self) -> int:
+    def _nn_output_shape(self) -> tuple[int, ...]:
         raise NotImplementedError
 
     @staticmethod
@@ -34,13 +34,16 @@ class ActorCriticBase:
         if isinstance(module, torch.nn.Linear):
             torch.nn.init.xavier_uniform_(module.weight)
 
+    def __forward_network_base(self, observations: torch.Tensor, network: torch.nn.Sequential) -> torch.Tensor:
+        result = network(observations)
+        assert result.shape[1:] == self._nn_output_shape
+        return result
+
     def forward_network(self, observations: torch.Tensor) -> torch.Tensor:
-        actions = self.__neural_network(observations)
-        assert actions.shape[-1] == self._nn_output_length
-        return actions
+        return self.__forward_network_base(observations=observations, network=self.__neural_network)
 
     def forward_target_network(self, observations: torch.Tensor) -> torch.Tensor:
-        return self.__target_neural_network(observations)
+        return self.__forward_network_base(observations=observations, network=self.__target_neural_network)
 
     def _update_target_network(self, target_update_proportion: float) -> None:
         assert 0 <= target_update_proportion <= 1

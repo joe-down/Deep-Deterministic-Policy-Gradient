@@ -2,6 +2,7 @@ import pathlib
 
 import torch
 import typing
+import typing_extensions
 
 from actor_critic.actor_critic_base import ActorCriticBase
 
@@ -30,9 +31,9 @@ class Actor(ActorCriticBase):
         super().__init__(load_path=load_path / "action", neural_network=neural_network)
         self.__optimiser = torch.optim.AdamW(params=self._parameters)
 
-    @property
-    def _nn_output_length(self) -> int:
-        return self.__action_length
+    @typing_extensions.override
+    def _nn_output_shape(self):
+        return (self.__action_length,)
 
     def update(self,
                observations: torch.Tensor,
