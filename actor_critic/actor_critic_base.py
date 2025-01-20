@@ -37,7 +37,9 @@ class ActorCriticBase:
             torch.nn.init.xavier_uniform_(module.weight)
 
     def __forward_network_base(self, observations: torch.Tensor, network: torch.nn.Sequential) -> torch.Tensor:
+        assert observations.ndim >= 2
         result = network(observations)
+        assert result.shape[0] == observations.shape[0]
         assert result.shape[1:] == self._nn_output_shape
         return result
 
