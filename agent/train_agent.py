@@ -22,6 +22,7 @@ class TrainAgent:
                  critic_nn_depth: int,
                  discount_factor: float,
                  train_batch_size: int,
+                 history_size: int,
                  buffer_size: int,
                  random_action_probability: float,
                  minimum_random_action_probability: float,
@@ -36,6 +37,7 @@ class TrainAgent:
         self.__action_length = action_length
         self.__discount_factor = discount_factor
         self.__train_batch_size = train_batch_size
+        self.__history_size = history_size
         self.__target_update_proportion = target_update_proportion
         self.__noise_variance = noise_variance
         self.__random_action_probability_decay = random_action_probability_decay
@@ -65,6 +67,7 @@ class TrainAgent:
                                                            action_queue,
                                                            dead_reward_queue,
                                                            reward_function,
+                                                           history_size,
                                                        ))
                                for runner_index, (observation_queue, action_queue, dead_reward_queue)
                                in enumerate(zip(
@@ -127,7 +130,7 @@ class TrainAgent:
         update_actor_target = iteration % 2 == 0
         update_critic_target = iteration % 2 == 0
         observations, actions, rewards, terminations, next_observations \
-            = self.__buffer.random_observations(number=self.__train_batch_size)
+            = self.__buffer.random_observations(number=self.__train_batch_size, history=self.__history_size)
         loss_1 = self.__critic.update(
             observation_actions=torch.concatenate((observations.detach(), actions.detach()), dim=-1),
             immediate_rewards=rewards.detach().unsqueeze(dim=-1),
@@ -156,12 +159,14 @@ class TrainAgent:
             action_queue: multiprocessing.Queue,
             dead_reward_queue: multiprocessing.Queue,
             reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
+            history_size: int,
     ) -> None:
         runner = Runner(
             environment=environment,
             seed=seed,
             action_formatter=action_formatter,
             reward_function=reward_function,
+            history_size=history_size
         )
         try:
             while True:

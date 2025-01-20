@@ -23,6 +23,7 @@ def validation_run(
         seed: int,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
         reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
+        history_size:int,
 ) -> None:
     actor = Actor(load_path=load_path,
                   observation_length=observation_length,
@@ -36,6 +37,7 @@ def validation_run(
         action_formatter=action_formatter,
         render_mode="human",
         reward_function=reward_function,
+        history_size=history_size,
     )
     try:
         while True:
@@ -55,6 +57,7 @@ def train_run(
         critic_nn_depth: int,
         discount_factor: float,
         train_batch_size: int,
+        history_size: int,
         buffer_size: int,
         random_action_probability: float,
         minimum_random_action_probability: float,
@@ -78,6 +81,7 @@ def train_run(
                              critic_nn_depth=critic_nn_depth,
                              discount_factor=discount_factor,
                              train_batch_size=train_batch_size,
+                             history_size=history_size,
                              buffer_size=buffer_size,
                              random_action_probability=random_action_probability,
                              minimum_random_action_probability=minimum_random_action_probability,
@@ -94,6 +98,7 @@ def train_run(
         seed=seed,
         action_formatter=action_formatter,
         reward_function=reward_function,
+        history_size=history_size,
     )
     best_state_dicts = train_agent.state_dicts
     figure = matplotlib.pyplot.figure()
@@ -147,6 +152,7 @@ def run(
         critic_nn_depth: int,
         discount_factor: float,
         train_batch_size: int,
+        history_size: int,
         buffer_size: int,
         random_action_probability: float,
         minimum_random_action_probability: float,
@@ -173,6 +179,7 @@ def run(
             critic_nn_depth=critic_nn_depth,
             discount_factor=discount_factor,
             train_batch_size=train_batch_size,
+            history_size=history_size,
             buffer_size=buffer_size,
             random_action_probability=random_action_probability,
             minimum_random_action_probability=minimum_random_action_probability,
@@ -224,6 +231,7 @@ def main(environment: str, train: bool) -> None:
             critic_nn_depth = 2 ** 1
             # Train parameters
             train_batch_size = 2 ** 6
+            history_size = 2
             agent_count = 2 ** 6
             buffer_size = 2 ** 22
             validation_interval = 100
@@ -249,6 +257,7 @@ def main(environment: str, train: bool) -> None:
             critic_nn_depth = 2 ** 1
             # Train parameters
             train_batch_size = 2 ** 6
+            history_size = 2
             agent_count = 2 ** 6
             buffer_size = 2 ** 22
             validation_interval = 100
@@ -271,6 +280,7 @@ def main(environment: str, train: bool) -> None:
             critic_nn_depth = 2 ** 1
             # Train parameters
             train_batch_size = 2 ** 6
+            history_size = 2
             agent_count = 2 ** 7
             buffer_size = 2 ** 8
             validation_interval = 100
@@ -297,6 +307,7 @@ def main(environment: str, train: bool) -> None:
         critic_nn_depth=critic_nn_depth,
         discount_factor=discount_factor,
         train_batch_size=train_batch_size,
+        history_size=history_size,
         buffer_size=buffer_size,
         random_action_probability=random_action_probability,
         minimum_random_action_probability=minimum_random_action_probability,
