@@ -25,17 +25,23 @@ class Transformer(torch.nn.Module):
     def forward(self,
                 src: torch.Tensor,
                 tgt: torch.Tensor,
+                src_mask: torch.Tensor,
+                tgt_mask: torch.Tensor,
                 src_key_padding_mask: torch.Tensor,
                 tgt_key_padding_mask: torch.Tensor,
                 ) -> torch.Tensor:
         assert src.ndim >= 2
         assert src.shape[-2:] == (self.__history_size, self.__in_features)
         assert tgt.shape == src.shape
+        assert src_mask.shape == (src.shape[-2], src.shape[-2])
+        assert tgt_mask.shape == (tgt.shape[-2], tgt.shape[-2])
         assert src_key_padding_mask.shape == src.shape[:-1]
         assert tgt_key_padding_mask.shape == tgt.shape[:-1]
         transformer_out = self.__transformer.forward(
             src=src,
             tgt=tgt,
+            src_mask=src_mask,
+            tgt_mask=tgt_mask,
             src_key_padding_mask=src_key_padding_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
         )
