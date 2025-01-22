@@ -1,57 +1,62 @@
 import pathlib
 import torch
-import typing_extensions
-
 from actor_critic.actor_critic_base import ActorCriticBase
+from actor_critic.transformer import Transformer
 
 
 class SubCritic(ActorCriticBase):
-    def __init__(self,
-                 load_path: pathlib.Path,
-                 observation_length: int,
-                 action_length: int,
-                 nn_width: int,
-                 nn_depth: int,
-                 ) -> None:
-        assert observation_length >= 1
-        assert action_length >= 1
-        assert nn_width >= 1
-        assert nn_depth >= 1
-        self.__observation_length = observation_length
-        self.__action_length = action_length
-        neural_network = torch.nn.Sequential(
-            torch.nn.Linear(observation_length + action_length, nn_width),
-            torch.nn.ReLU(),
+    __q_features = 1
+
+    def __init__(
+            self,
+            load_path: pathlib.Path,
+            observation_length: int,
+            action_length: int,
+            history_size: int,
+            n_head: int,
+    ) -> None:
+        assert observation_length > 0
+        assert action_length > 0
+        self.__history_size = history_size
+        model = Transformer(
+            in_features=observation_length + action_length,
+            out_features=self.__q_features,
+            history_size=history_size,
+            n_head=n_head,
         )
-        for _ in range(nn_depth):
-            neural_network.append(torch.nn.Linear(nn_width, nn_width))
-            neural_network.append(torch.nn.ReLU())
-        neural_network.append(torch.nn.Linear(nn_width, 1))
-        super().__init__(load_path=load_path, neural_network=neural_network)
-        self.__optimiser = torch.optim.AdamW(params=self._parameters)
+        super().__init__(
+            load_path=load_path,
+            model=model,
+            model_input_shape=(history_size, observation_length + action_length),
+            model_output_shape=(1,),
+        )
+        self.__optimiser = torch.optim.AdamW(params=self._model_parameters)
 
-    @typing_extensions.override
-    @property
-    def _nn_output_shape(self):
-        return (1,)
-
-    def update(self,
-               observation_actions: torch.Tensor,
-               targets: torch.Tensor,
-               loss_function: torch.nn.MSELoss,
-               target_update_proportion: float,
-               update_target_networks: bool,
-               ) -> float:
-        assert observation_actions.shape[1:] == (self.__observation_length + self.__action_length,)
-        assert targets.shape[1:] == (1,)
-        assert (observation_actions.shape[0] == targets.shape[0])
+    def update(
+            self,
+            src: torch.Tensor,
+            tgt: torch.Tensor,
+            src_key_padding_mask: torch.Tensor,
+            tgt_key_padding_mask: torch.Tensor,
+            q_targets: torch.Tensor,
+            loss_function: torch.nn.MSELoss,
+            target_update_proportion: float,
+            update_target_networks: bool,
+    ) -> float:
+        assert q_targets.shape == src.shape[:-2] + (self.__q_features,)
+        assert q_targets.shape[:-1]
         assert 0 < target_update_proportion <= 1
-        prediction = self.forward_network(observation_actions)
+        prediction = self.forward_model(
+            src=src,
+            tgt=tgt,
+            src_key_padding_mask=src_key_padding_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+        )
         self.__optimiser.zero_grad()
-        loss = loss_function(targets, prediction)
+        loss = loss_function(q_targets, prediction)
+        assert loss.shape == ()
         loss.backward()
         self.__optimiser.step()
         if update_target_networks:
-            self._update_target_network(target_update_proportion=target_update_proportion)
-        assert loss.shape == ()
+            self._update_target_model(target_update_proportion=target_update_proportion)
         return loss
