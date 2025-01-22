@@ -93,7 +93,7 @@ class ActorCriticBase(abc.ABC):
     @staticmethod
     def __tgt_mask(tgt: torch.Tensor) -> torch.Tensor:
         assert tgt.ndim >= 2
-        tgt_mask = torch.triu(-torch.inf * torch.ones(size=(tgt.shape[-2], tgt.shape[-2])), diagonal=1)
+        tgt_mask = torch.triu(-torch.inf * torch.ones(size=(tgt.shape[-2], tgt.shape[-2])), diagonal=1).flip(dims=(1,))
         assert tgt_mask.shape == (tgt.shape[-2], tgt.shape[-2])
         return tgt_mask
 
