@@ -45,8 +45,6 @@ class ActorCriticBase(abc.ABC):
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
-            src_mask: torch.Tensor,
-            tgt_mask: torch.Tensor,
             src_key_padding_mask: torch.Tensor,
             tgt_key_padding_mask: torch.Tensor,
             model: torch.nn.Module,
@@ -55,8 +53,7 @@ class ActorCriticBase(abc.ABC):
         result = model.forward(
             src=src,
             tgt=tgt,
-            src_mask=src_mask,
-            tgt_mask=tgt_mask,
+            tgt_mask=self.__tgt_mask(tgt=tgt),
             src_key_padding_mask=src_key_padding_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
         )
@@ -67,16 +64,12 @@ class ActorCriticBase(abc.ABC):
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
-            src_mask: torch.Tensor,
-            tgt_mask: torch.Tensor,
             src_key_padding_mask: torch.Tensor,
             tgt_key_padding_mask: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_base(
             src=src,
             tgt=tgt,
-            src_mask=src_mask,
-            tgt_mask=tgt_mask,
             src_key_padding_mask=src_key_padding_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
             model=self.__model,
@@ -86,21 +79,23 @@ class ActorCriticBase(abc.ABC):
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
-            src_mask: torch.Tensor,
-            tgt_mask: torch.Tensor,
             src_key_padding_mask: torch.Tensor,
             tgt_key_padding_mask: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_base(
             src=src,
             tgt=tgt,
-            src_mask=src_mask,
-            tgt_mask=tgt_mask,
             src_key_padding_mask=src_key_padding_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
             model=self.__target_model,
-
         )
+
+    @staticmethod
+    def __tgt_mask(tgt: torch.Tensor) -> torch.Tensor:
+        assert tgt.ndim >= 2
+        tgt_mask = torch.triu(-torch.inf * torch.ones(size=(tgt.shape[-2], tgt.shape[-2])), diagonal=1)
+        assert tgt_mask.shape == (tgt.shape[-2], tgt.shape[-2])
+        return tgt_mask
 
     def _update_target_model(self, target_update_proportion: float) -> None:
         assert 0 <= target_update_proportion <= 1
