@@ -12,11 +12,7 @@ class Transformer(torch.nn.Module):
         self.__out_features = out_features
         self.__history_size = history_size
         super().__init__()
-        self.__transformer = torch.nn.Transformer(
-            d_model=in_features,
-            nhead=n_head,
-            batch_first=True,
-        )
+        self.__transformer = torch.nn.Transformer(d_model=in_features, nhead=n_head, batch_first=True, )
         self.__post_transformer = torch.nn.Sequential(
             torch.nn.Linear(in_features=history_size * in_features, out_features=out_features),
             torch.nn.Sigmoid(),
