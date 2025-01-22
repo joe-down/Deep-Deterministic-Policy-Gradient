@@ -18,14 +18,27 @@ class Transformer(torch.nn.Module):
             batch_first=True,
         )
         self.__post_transformer = torch.nn.Sequential(
-            torch.nn.Linear(in_features=history_size * in_features, out_features=out_features)
+            torch.nn.Linear(in_features=history_size * in_features, out_features=out_features),
+            torch.nn.Sigmoid(),
         )
 
-    def forward(self, src: torch.Tensor, tgt: torch.Tensor) -> torch.Tensor:
+    def forward(self,
+                src: torch.Tensor,
+                tgt: torch.Tensor,
+                src_key_padding_mask: torch.Tensor,
+                tgt_key_padding_mask: torch.Tensor,
+                ) -> torch.Tensor:
         assert src.ndim >= 2
         assert src.shape[-2:] == (self.__history_size, self.__in_features)
         assert tgt.shape == src.shape
-        transformer_out = self.__transformer.forward(src=src, tgt=tgt)
+        assert src_key_padding_mask.shape == src.shape[:-1]
+        assert tgt_key_padding_mask.shape == tgt.shape[:-1]
+        transformer_out = self.__transformer.forward(
+            src=src,
+            tgt=tgt,
+            src_key_padding_mask=src_key_padding_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+        )
         assert transformer_out.shape == src.shape[:-2] + (self.__history_size, self.__in_features)
         flat_transformer_out = transformer_out.flatten(start_dim=1, end_dim=-1)
         assert flat_transformer_out.shape == src.shape[:-2] + (self.__history_size * self.__in_features,)
