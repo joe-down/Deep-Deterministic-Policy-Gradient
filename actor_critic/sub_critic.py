@@ -34,21 +34,21 @@ class SubCritic(ActorCriticBase):
 
     def update(
             self,
-            src: torch.Tensor,
+            observation_actions: torch.Tensor,
             tgt: torch.Tensor,
-            src_key_padding_mask: torch.Tensor,
+            observation_actions_key_padding_mask: torch.Tensor,
             tgt_key_padding_mask: torch.Tensor,
             q_targets: torch.Tensor,
             loss_function: torch.nn.MSELoss,
-            target_update_proportion: float,
             update_target_networks: bool,
+            target_update_proportion: float,
     ) -> float:
-        assert q_targets.shape == src.shape[:-2] + (self.__q_features,)
+        assert q_targets.shape == observation_actions.shape[:-2] + (self.__q_features,)
         assert 0 < target_update_proportion <= 1
         prediction = self.forward_model(
-            src=src,
+            src=observation_actions,
             tgt=tgt,
-            src_key_padding_mask=src_key_padding_mask,
+            src_key_padding_mask=observation_actions_key_padding_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
         )
         self.__optimiser.zero_grad()
