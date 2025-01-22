@@ -44,7 +44,6 @@ class SubCritic(ActorCriticBase):
             update_target_networks: bool,
     ) -> float:
         assert q_targets.shape == src.shape[:-2] + (self.__q_features,)
-        assert q_targets.shape[:-1]
         assert 0 < target_update_proportion <= 1
         prediction = self.forward_model(
             src=src,
