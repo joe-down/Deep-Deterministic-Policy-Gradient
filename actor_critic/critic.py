@@ -84,7 +84,7 @@ class Critic:
         assert observations.ndim >= 2
         assert observations.shape[-2:] == (self.__history_size, self.__observation_length)
         assert actions.shape == observations.shape[-2:] + (self.__history_size, self.__action_length)
-        assert qs.shape == observations.shape[-2:] + (self.__history_size, SubCritic.q_features())
+        assert qs.shape == observations.shape[-2:] + (self.__history_size,)
         assert observations_sequence_length.shape == observations.shape[:-2]
         assert next_observation.shape == observations.shape[:-2] + (1, self.__observation_length,)
         assert next_observation_sequence_length.shape == observations_sequence_length.shape
@@ -103,7 +103,7 @@ class Critic:
             observations=next_observations,
             previous_actions=actions[..., 1:, :],
             observations_sequence_length=next_observation_sequence_length,
-        )[..., -1:, :]  # TODO shouldn't need to do this
+        )
         assert best_next_action.shape == next_observation.shape[:-2] + (1, self.__action_length,)
         best_next_observation_action = torch.concatenate(tensors=(next_observation, best_next_action), dim=-1)
         assert (best_next_observation_action.shape
@@ -120,13 +120,13 @@ class Critic:
         assert best_next_observation_actions[..., :-1, self.__observation_length:] == actions
         assert best_next_observation_actions[..., -1:, :self.__observation_length] == next_observation
         assert best_next_observation_actions[..., -1:, self.__observation_length:] == best_next_action
-        worst_best_next_observation_actions_qs = self.forward_target_model(
+        worst_best_next_observation_actions_q = self.forward_target_model(
             observation_actions=best_next_observation_actions,
             previous_qs=qs[..., 1:, :],
             observation_actions_sequence_length=next_observation_sequence_length,
         )
-        assert worst_best_next_observation_actions_qs.shape == observations.shape[:-2] + (1, SubCritic.q_features())
-        q_targets = (immediate_rewards + discount_factor * (1 - terminations) * worst_next_observation_action_qs)#TODO THIS!!!
+        assert worst_best_next_observation_actions_q.shape== observations.shape[:-2]
+        q_targets = (immediate_rewards + discount_factor * (1 - terminations) * worst_best_next_observation_actions_q)
         loss = sum(sub_critic.update(
             observation_actions=observation_actions.detach(),
             previous_qs=qs[:-1],

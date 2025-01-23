@@ -22,20 +22,23 @@ class SubCritic(ActorCriticBase):
             load_path=load_path,
             model=Model(
                 src_features=observation_length + action_length,
-                tgt_features=self.q_features(),
+                tgt_features=1,
                 history_size=history_size,
                 embedding_dim=embedding_dim,
                 n_head=n_head,
             ),
             input_features=observation_length + action_length,
-            output_features=self.q_features(),
+            output_features=1,
             history_size=history_size,
         )
         self.__optimiser = torch.optim.AdamW(params=self._model_parameters)
 
-    @staticmethod
-    def q_features() -> int:
-        return 1
+    def __forward_model_postprocess(self, observation_actions: torch.Tensor, qs: torch.Tensor) -> torch.Tensor:
+        assert qs.shape == observation_actions.shape[:-2] + (self._history_size, self._output_features)
+        assert self._output_features == 1
+        q = qs[..., -1, :].squeeze(dim=-1)
+        assert q.shape == observation_actions.shape[:-2]
+        return q
 
     @typing_extensions.override
     def forward_model(
@@ -44,10 +47,13 @@ class SubCritic(ActorCriticBase):
             previous_qs: torch.Tensor,
             observation_actions_sequence_length: torch.IntTensor,
     ) -> torch.Tensor:
-        return super().forward_model(
-            src=observation_actions,
-            tgt=previous_qs,
-            src_sequence_length=observation_actions_sequence_length,
+        return self.__forward_model_postprocess(
+            observation_actions=observation_actions,
+            qs=super().forward_model(
+                src=observation_actions,
+                tgt=previous_qs,
+                src_sequence_length=observation_actions_sequence_length,
+            ),
         )
 
     @typing_extensions.override
@@ -57,10 +63,13 @@ class SubCritic(ActorCriticBase):
             previous_qs: torch.Tensor,
             observation_actions_sequence_length: torch.IntTensor,
     ) -> torch.Tensor:
-        return super().forward_target_model(
-            src=observation_actions,
-            tgt=previous_qs,
-            src_sequence_length=observation_actions_sequence_length,
+        return self.__forward_model_postprocess(
+            observation_actions=observation_actions,
+            qs=super().forward_target_model(
+                src=observation_actions,
+                tgt=previous_qs,
+                src_sequence_length=observation_actions_sequence_length,
+            ),
         )
 
     def update(
@@ -74,12 +83,12 @@ class SubCritic(ActorCriticBase):
             target_update_proportion: float,
     ) -> float:
         assert observation_actions.ndim >= 2
-        assert q_targets.shape == observation_actions.shape[:-2] + (self._history_size, self.q_features())
+        assert q_targets.shape == observation_actions.shape[:-2] + (self._history_size,)
         assert 0 < target_update_proportion <= 1
-        prediction = self.forward_model(
-            observation_actions=observation_actions,
-            previous_qs=previous_qs,
-            observation_actions_sequence_length=observation_actions_sequence_length,
+        prediction = super().forward_model(
+            src=observation_actions,
+            tgt=previous_qs,
+            src_sequence_length=observation_actions_sequence_length,
         )
         assert prediction.shape == q_targets.shape
         self.__optimiser.zero_grad()

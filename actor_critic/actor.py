@@ -35,6 +35,12 @@ class Actor(ActorCriticBase):
         self.__optimiser = torch.optim.AdamW(params=self._model_parameters)
         self.__transformer_loss_function = torch.nn.MSELoss()
 
+    def __forward_model_postprocess(self, observations: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
+        assert actions.shape == observations.shape[:-2] + (self._history_size, self._output_features)
+        action = actions[..., -1, :]
+        assert action.shape == observations.shape[:-2] + (self._output_features,)
+        return action
+
     @typing_extensions.override
     def forward_model(
             self,
@@ -42,10 +48,13 @@ class Actor(ActorCriticBase):
             previous_actions: torch.Tensor,
             observations_sequence_length: torch.IntTensor,
     ) -> torch.Tensor:
-        return super().forward_model(
-            src=observations,
-            tgt=previous_actions,
-            src_sequence_length=observations_sequence_length,
+        return self.__forward_model_postprocess(
+            observations=observations,
+            actions=super().forward_model(
+                src=observations,
+                tgt=previous_actions,
+                src_sequence_length=observations_sequence_length,
+            ),
         )
 
     @typing_extensions.override
@@ -55,10 +64,13 @@ class Actor(ActorCriticBase):
             previous_actions: torch.Tensor,
             observations_sequence_length: torch.IntTensor,
     ) -> torch.Tensor:
-        return super().forward_target_model(
-            src=observations,
-            tgt=previous_actions,
-            src_sequence_length=observations_sequence_length,
+        return self.__forward_model_postprocess(
+            observations=observations,
+            actions=super().forward_target_model(
+                src=observations,
+                tgt=previous_actions,
+                src_sequence_length=observations_sequence_length,
+            ),
         )
 
     def update(
@@ -71,21 +83,32 @@ class Actor(ActorCriticBase):
             update_target_network: bool,
             critic: "Critic",
     ) -> float:
-        best_actions = self.forward_model(
-            observations=observations,
-            previous_actions=previous_actions,
-            observations_sequence_length=observations_sequence_length
+        unprocessed_best_actions = super().forward_model(
+            src=observations,
+            tgt=previous_actions,
+            src_sequence_length=observations_sequence_length
         )
-        assert best_actions.shape == observations.shape[:-2] + (self._history_size, self._output_features,)
+        assert unprocessed_best_actions.shape == observations.shape[:-2] + (self._history_size, self._output_features,)
+        best_actions = torch.concatenate(tensors=(previous_actions, unprocessed_best_actions[..., -1:, :]), dim=-2)
+        assert best_actions.shape == unprocessed_best_actions.shape
+        assert torch.all(best_actions[..., :-1, :] == previous_actions)
+        assert torch.all(best_actions[..., -1:, :] == unprocessed_best_actions[..., -1:, :])
         best_observation_actions = torch.concatenate((observations, best_actions), dim=-1)
         assert (best_observation_actions.shape
                 == observations.shape[:-2] + (self._history_size, self._input_features + self._output_features,))
         self.__optimiser.zero_grad()
-        loss = (-critic.forward_model(
+        q_loss = (-critic.forward_model(
             observation_actions=best_observation_actions,
             previous_qs=previous_qs,
             observation_actions_sequence_length=observations_sequence_length,
-        )).mean() + self.__transformer_loss_function.forward(input=best_actions[:-1], target=previous_actions)
+        )).mean()
+        assert q_loss.shape == ()
+        transformer_loss = self.__transformer_loss_function.forward(
+            input=unprocessed_best_actions[:-1],
+            target=previous_actions,
+        )
+        assert transformer_loss.shape == ()
+        loss = q_loss + transformer_loss
         assert loss.shape == ()
         loss.backward()
         self.__optimiser.step()
