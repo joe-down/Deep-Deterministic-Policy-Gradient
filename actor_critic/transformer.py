@@ -22,8 +22,8 @@ class Transformer(torch.nn.Module):
                 src: torch.Tensor,
                 tgt: torch.Tensor,
                 tgt_mask: torch.Tensor,
-                src_key_padding_mask: torch.Tensor,
-                tgt_key_padding_mask: torch.Tensor,
+                src_key_padding_mask: torch.BoolTensor,
+                tgt_key_padding_mask: torch.BoolTensor,
                 ) -> torch.Tensor:
         assert src.ndim >= 2
         assert src.shape[-2:] == (self.__history_size, self.__in_features)
