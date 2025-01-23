@@ -1,7 +1,7 @@
 import torch.nn
 
 
-class ActorCriticModelBase(torch.nn.Module):
+class Model(torch.nn.Module):
     def __init__(
             self,
             src_features: int,

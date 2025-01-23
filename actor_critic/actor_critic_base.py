@@ -4,14 +4,14 @@ import pathlib
 import torch
 import typing
 
-from actor_critic.models.actor_critic_model_base import ActorCriticModelBase
+from actor_critic.model import Model
 
 
 class ActorCriticBase(abc.ABC):
     def __init__(
             self,
             load_path: pathlib.Path,
-            model: ActorCriticModelBase,
+            model: Model,
             model_input_shape: tuple[int, ...],
             model_output_shape: tuple[int, ...],
     ) -> None:
@@ -49,7 +49,7 @@ class ActorCriticBase(abc.ABC):
             tgt: torch.Tensor,
             src_sequence_length: torch.IntTensor,
             tgt_sequence_length: torch.IntTensor,
-            model: ActorCriticModelBase,
+            model: Model,
     ) -> torch.Tensor:
         assert src.shape[-len(self.__model_input_shape):] == self.__model_input_shape
         result = model.forward(
