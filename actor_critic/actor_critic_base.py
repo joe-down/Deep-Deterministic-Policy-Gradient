@@ -103,7 +103,7 @@ class ActorCriticBase(abc.ABC):
     def __padding_mask(src: torch.Tensor, sequence_lengths: torch.IntTensor) -> torch.BoolTensor:
         assert src.ndim >= 2
         assert sequence_lengths.shape == src.shape[:-2] + (1,)
-        assert torch.all(sequence_lengths > 0)
+        assert torch.all(sequence_lengths >= 0)
         history_length = src.shape[-2]
         flat_sequence_lengths = sequence_lengths.flatten()
         assert flat_sequence_lengths.shape == (sequence_lengths.nelement(),)
