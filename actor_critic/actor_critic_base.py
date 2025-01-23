@@ -45,8 +45,8 @@ class ActorCriticBase(abc.ABC):
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
-            src_key_padding_mask: torch.Tensor,
-            tgt_key_padding_mask: torch.Tensor,
+            src_sequence_length: torch.IntTensor,
+            tgt_sequence_length: torch.IntTensor,
             model: torch.nn.Module,
     ) -> torch.Tensor:
         assert src.shape[-len(self.__model_input_shape):] == self.__model_input_shape
@@ -54,8 +54,8 @@ class ActorCriticBase(abc.ABC):
             src=src,
             tgt=tgt,
             tgt_mask=self.__tgt_mask(tgt=tgt),
-            src_key_padding_mask=src_key_padding_mask,
-            tgt_key_padding_mask=tgt_key_padding_mask,
+            src_key_padding_mask=self.__padding_mask(src=src, sequence_lengths=src_sequence_length),
+            tgt_key_padding_mask=self.__padding_mask(src=tgt, sequence_lengths=tgt_sequence_length),
         )
         assert result.shape == src.shape[:-len(self.__model_input_shape)] + self.__model_output_shape
         return result
@@ -64,14 +64,14 @@ class ActorCriticBase(abc.ABC):
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
-            src_key_padding_mask: torch.Tensor,
-            tgt_key_padding_mask: torch.Tensor,
+            src_sequence_length: torch.IntTensor,
+            tgt_sequence_length: torch.IntTensor,
     ) -> torch.Tensor:
         return self.__forward_model_base(
             src=src,
             tgt=tgt,
-            src_key_padding_mask=src_key_padding_mask,
-            tgt_key_padding_mask=tgt_key_padding_mask,
+            src_sequence_length=src_sequence_length,
+            tgt_sequence_length=tgt_sequence_length,
             model=self.__model,
         )
 
@@ -79,14 +79,14 @@ class ActorCriticBase(abc.ABC):
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
-            src_key_padding_mask: torch.Tensor,
-            tgt_key_padding_mask: torch.Tensor,
+            src_sequence_length: torch.IntTensor,
+            tgt_sequence_length: torch.IntTensor,
     ) -> torch.Tensor:
         return self.__forward_model_base(
             src=src,
             tgt=tgt,
-            src_key_padding_mask=src_key_padding_mask,
-            tgt_key_padding_mask=tgt_key_padding_mask,
+            src_sequence_length=src_sequence_length,
+            tgt_sequence_length=tgt_sequence_length,
             model=self.__target_model,
         )
 
@@ -96,6 +96,26 @@ class ActorCriticBase(abc.ABC):
         tgt_mask = torch.triu(-torch.inf * torch.ones(size=(tgt.shape[-2], tgt.shape[-2])), diagonal=1).flip(dims=(1,))
         assert tgt_mask.shape == (tgt.shape[-2], tgt.shape[-2])
         return tgt_mask
+
+    @staticmethod
+    def __padding_mask(src: torch.Tensor, sequence_lengths: torch.IntTensor) -> torch.BoolTensor:
+        assert src.ndim >= 2
+        assert sequence_lengths.shape == src.shape[:-2] + (1,)
+        assert torch.all(sequence_lengths >= 0)
+        history_length = src.shape[-2]
+        flat_sequence_lengths = sequence_lengths.flatten()
+        assert flat_sequence_lengths.shape == (sequence_lengths.nelement(),)
+        capped_flat_sequence_length = flat_sequence_lengths.clamp(min=0, max=history_length)
+        assert 0 <= capped_flat_sequence_length <= history_length
+        flat_padding_mask = torch.stack(
+            [torch.concatenate((torch.ones(history_length - sequence_length).bool(),
+                                torch.zeros(sequence_length).bool()))
+             for sequence_length in capped_flat_sequence_length]
+        )
+        assert flat_padding_mask.shape == (sequence_lengths.nelement(), src.shape[-2])
+        padding_mask = flat_padding_mask.reshape(src.shape[:-1])
+        assert padding_mask.shape == src.shape[:-1]
+        return torch.BoolTensor(padding_mask)
 
     def _update_target_model(self, target_update_proportion: float) -> None:
         assert 0 <= target_update_proportion <= 1

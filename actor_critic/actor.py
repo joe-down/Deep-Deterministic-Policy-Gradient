@@ -37,18 +37,18 @@ class Actor(ActorCriticBase):
     def update(
             self,
             observations: torch.Tensor,
-            tgt: torch.Tensor,
-            observations_key_padding_mask: torch.Tensor,
-            tgt_key_padding_mask: torch.Tensor,
+            next_observations: torch.Tensor,
+            observations_sequence_length: torch.IntTensor,
+            next_observations_sequence_length: torch.IntTensor,
             target_model_update_proportion: float,
             update_target_network: bool,
             critic: "Critic",
     ) -> float:
         best_actions = self.forward_model(
             src=observations,
-            tgt=tgt,
-            src_key_padding_mask=observations_key_padding_mask,
-            tgt_key_padding_mask=tgt_key_padding_mask,
+            tgt=next_observations,
+            src_sequence_length=observations_sequence_length,
+            tgt_sequence_length=next_observations_sequence_length,
         )
         assert best_actions.shape == observations.shape[:-2] + (self.__action_length,)
         history_dimension_best_actions = best_actions.unsqueeze(dim=-2)
@@ -60,7 +60,7 @@ class Actor(ActorCriticBase):
         assert history_repeated_best_actions.shape == observations.shape[:-1] + (self.__action_length,)
         best_observation_actions = torch.concatenate((observations, history_repeated_best_actions), dim=-1)
         assert best_observation_actions.shape == observations.shape[:-1] + (
-        self.__observation_length + self.__action_length,)
+            self.__observation_length + self.__action_length,)
         self.__optimiser.zero_grad()
         loss = (-critic.forward_network()).mean()  # TODO critic forward
         assert loss.shape == ()

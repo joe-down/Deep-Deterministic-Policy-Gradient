@@ -35,9 +35,9 @@ class SubCritic(ActorCriticBase):
     def update(
             self,
             observation_actions: torch.Tensor,
-            tgt: torch.Tensor,
-            observation_actions_key_padding_mask: torch.Tensor,
-            tgt_key_padding_mask: torch.Tensor,
+            next_observation_actions: torch.Tensor,
+            observation_actions_sequence_length: torch.IntTensor,
+            next_observation_actions_sequence_length: torch.IntTensor,
             q_targets: torch.Tensor,
             loss_function: torch.nn.MSELoss,
             update_target_model: bool,
@@ -47,9 +47,9 @@ class SubCritic(ActorCriticBase):
         assert 0 < target_update_proportion <= 1
         prediction = self.forward_model(
             src=observation_actions,
-            tgt=tgt,
-            src_key_padding_mask=observation_actions_key_padding_mask,
-            tgt_key_padding_mask=tgt_key_padding_mask,
+            tgt=next_observation_actions,
+            src_sequence_length=observation_actions_sequence_length,
+            tgt_sequence_length=next_observation_actions_sequence_length,
         )
         self.__optimiser.zero_grad()
         loss = loss_function(q_targets, prediction)
