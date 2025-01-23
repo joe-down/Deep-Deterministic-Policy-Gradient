@@ -1,7 +1,7 @@
 import torch.nn
 
 
-class Transformer(torch.nn.Module):
+class ActorCriticModelBase(torch.nn.Module):
     def __init__(
             self,
             src_features: int,
