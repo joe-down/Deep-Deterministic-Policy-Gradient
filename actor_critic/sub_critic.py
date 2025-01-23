@@ -40,7 +40,7 @@ class SubCritic(ActorCriticBase):
             tgt_key_padding_mask: torch.Tensor,
             q_targets: torch.Tensor,
             loss_function: torch.nn.MSELoss,
-            update_target_networks: bool,
+            update_target_model: bool,
             target_update_proportion: float,
     ) -> float:
         assert q_targets.shape == observation_actions.shape[:-2] + (self.__q_features,)
@@ -56,6 +56,6 @@ class SubCritic(ActorCriticBase):
         assert loss.shape == ()
         loss.backward()
         self.__optimiser.step()
-        if update_target_networks:
+        if update_target_model:
             self._update_target_model(target_update_proportion=target_update_proportion)
         return loss
