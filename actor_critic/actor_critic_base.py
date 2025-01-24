@@ -64,6 +64,7 @@ class ActorCriticBase(abc.ABC):
             src_sequence_length: torch.IntTensor,
             model: Model,
     ) -> torch.Tensor:
+        assert src.ndim > 2
         assert src.shape[-2:] == (self.__history_size, self.__input_features)
         assert tgt.shape == src.shape[:-2] + (self.__history_size - 1, self.__output_features)
         assert src_sequence_length.shape == src.shape[:-2]
@@ -77,10 +78,10 @@ class ActorCriticBase(abc.ABC):
         assert torch.all(shifted_tgt[..., -1, :] <= 1)
         src_key_padding_mask = self.__key_padding_mask(sequence_lengths=src_sequence_length)
         assert src_key_padding_mask.shape == src.shape[:-1]
-        tgt_key_padding_mask = torch.BoolTensor(torch.concatenate(
+        tgt_key_padding_mask = torch.concatenate(
             tensors=(src_key_padding_mask[..., :-1], torch.ones(size=src_key_padding_mask.shape[:-1] + (1,)),),
             dim=-1
-        ).bool())
+        ).bool()
         assert tgt_key_padding_mask.shape == shifted_tgt.shape[:-1]
         assert torch.all(tgt_key_padding_mask[..., :-1] == src_key_padding_mask[..., :-1])
         assert torch.all(tgt_key_padding_mask[..., -1] == True)
@@ -122,7 +123,7 @@ class ActorCriticBase(abc.ABC):
             model=self.__target_model,
         )
 
-    def __key_padding_mask(self, sequence_lengths: torch.IntTensor) -> torch.BoolTensor:
+    def __key_padding_mask(self, sequence_lengths: torch.IntTensor) -> torch.Tensor:
         assert torch.all(sequence_lengths >= 0)
         flat_sequence_lengths = sequence_lengths.flatten()
         assert flat_sequence_lengths.shape == (sequence_lengths.nelement(),)
@@ -136,7 +137,7 @@ class ActorCriticBase(abc.ABC):
         assert flat_padding_mask.shape == (sequence_lengths.nelement(), self.__history_size)
         padding_mask = flat_padding_mask.reshape(sequence_lengths.shape + (self.__history_size,))
         assert padding_mask.shape == sequence_lengths.shape + (self.__history_size,)
-        return torch.BoolTensor(padding_mask)
+        return padding_mask.bool()
 
     def _update_target_model(self, target_update_proportion: float) -> None:
         assert 0 <= target_update_proportion <= 1
