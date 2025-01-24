@@ -45,7 +45,7 @@ class SubCritic(ActorCriticBase):
             self,
             observation_actions: torch.Tensor,
             previous_qs: torch.Tensor,
-            observation_actions_sequence_length: torch.IntTensor,
+            observation_actions_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observation_actions=observation_actions,
@@ -61,7 +61,7 @@ class SubCritic(ActorCriticBase):
             self,
             observation_actions: torch.Tensor,
             previous_qs: torch.Tensor,
-            observation_actions_sequence_length: torch.IntTensor,
+            observation_actions_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observation_actions=observation_actions,
@@ -76,7 +76,7 @@ class SubCritic(ActorCriticBase):
             self,
             observation_actions: torch.Tensor,
             previous_qs: torch.Tensor,
-            observation_actions_sequence_length: torch.IntTensor,
+            observation_actions_sequence_length: torch.Tensor,
             q_targets: torch.Tensor,
             loss_function: torch.nn.MSELoss,
             update_target_model: bool,

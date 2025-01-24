@@ -61,7 +61,7 @@ class ActorCriticBase(abc.ABC):
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
-            src_sequence_length: torch.IntTensor,
+            src_sequence_length: torch.Tensor,
             model: Model,
     ) -> torch.Tensor:
         assert src.ndim > 2
@@ -100,7 +100,7 @@ class ActorCriticBase(abc.ABC):
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
-            src_sequence_length: torch.IntTensor,
+            src_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_base(
             src=src,
@@ -114,7 +114,7 @@ class ActorCriticBase(abc.ABC):
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
-            src_sequence_length: torch.IntTensor,
+            src_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_base(
             src=src,
@@ -123,7 +123,8 @@ class ActorCriticBase(abc.ABC):
             model=self.__target_model,
         )
 
-    def __key_padding_mask(self, sequence_lengths: torch.IntTensor) -> torch.Tensor:
+    def __key_padding_mask(self, sequence_lengths: torch.Tensor) -> torch.Tensor:
+        assert sequence_lengths.dtype == torch.int64
         assert torch.all(sequence_lengths >= 0)
         flat_sequence_lengths = sequence_lengths.flatten()
         assert flat_sequence_lengths.shape == (sequence_lengths.nelement(),)

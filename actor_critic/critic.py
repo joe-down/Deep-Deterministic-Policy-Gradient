@@ -46,7 +46,7 @@ class Critic:
             self,
             observation_actions: torch.Tensor,
             previous_qs: torch.Tensor,
-            observation_actions_sequence_length: torch.IntTensor,
+            observation_actions_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_base(q_rewards=torch.stack([sub_critic.forward_model(
             observation_actions=observation_actions,
@@ -58,7 +58,7 @@ class Critic:
             self,
             observation_actions: torch.Tensor,
             previous_qs: torch.Tensor,
-            observation_actions_sequence_length: torch.IntTensor,
+            observation_actions_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_base(q_rewards=torch.stack([sub_critic.forward_target_model(
             observation_actions=observation_actions,
@@ -72,9 +72,9 @@ class Critic:
             observations: torch.Tensor,
             actions: torch.Tensor,
             qs: torch.Tensor,
-            observations_sequence_length: torch.IntTensor,
+            observations_sequence_length: torch.Tensor,
             next_observation: torch.Tensor,
-            next_observation_sequence_length: torch.IntTensor,
+            next_observation_sequence_length: torch.Tensor,
             immediate_rewards: torch.Tensor,
             terminations: torch.Tensor,
             discount_factor: float,

@@ -46,7 +46,7 @@ class Actor(ActorCriticBase):
             self,
             observations: torch.Tensor,
             previous_actions: torch.Tensor,
-            observations_sequence_length: torch.IntTensor,
+            observations_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observations=observations,
@@ -62,7 +62,7 @@ class Actor(ActorCriticBase):
             self,
             observations: torch.Tensor,
             previous_actions: torch.Tensor,
-            observations_sequence_length: torch.IntTensor,
+            observations_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observations=observations,
@@ -78,7 +78,7 @@ class Actor(ActorCriticBase):
             observations: torch.Tensor,
             previous_actions: torch.Tensor,
             previous_qs: torch.Tensor,
-            observations_sequence_length: torch.IntTensor,
+            observations_sequence_length: torch.Tensor,
             target_model_update_proportion: float,
             update_target_network: bool,
             critic: "Critic",
