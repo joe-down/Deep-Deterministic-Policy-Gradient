@@ -129,7 +129,8 @@ class ActorCriticBase(abc.ABC):
         flat_sequence_lengths = sequence_lengths.flatten()
         assert flat_sequence_lengths.shape == (sequence_lengths.nelement(),)
         capped_flat_sequence_length = flat_sequence_lengths.clamp(min=0, max=self.__history_size)
-        assert 0 <= capped_flat_sequence_length <= self.__history_size
+        assert torch.all(capped_flat_sequence_length >= 0)
+        assert torch.all(capped_flat_sequence_length <= self.__history_size)
         flat_padding_mask = torch.stack(
             [torch.concatenate((torch.ones(self.__history_size - sequence_length).bool(),
                                 torch.zeros(sequence_length).bool()))
