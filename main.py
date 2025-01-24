@@ -70,6 +70,11 @@ def train_run(
         noise_variance: float,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
         reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
+        sub_critic_count: int,
+        actor_embedding_dim: int,
+        actor_n_head: int,
+        critic_embedding_dim: int,
+        critic_n_head: int,
 ) -> None:
     train_agent = TrainAgent(train_agent_count=agent_count,
                              save_path=save_path,
@@ -88,6 +93,11 @@ def train_run(
                              noise_variance=noise_variance,
                              action_formatter=action_formatter,
                              reward_function=reward_function,
+                             sub_critic_count=sub_critic_count,
+                             actor_embedding_dim=actor_embedding_dim,
+                             actor_n_head=actor_n_head,
+                             critic_embedding_dim=critic_embedding_dim,
+                             critic_n_head=critic_n_head,
                              )
     validation_runner = Runner(
         environment=environment,
@@ -159,8 +169,9 @@ def run(
         noise_variance: float,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
         reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
-        actor_embedding_dim:int,
+        actor_embedding_dim: int,
         actor_n_head: int,
+        critic_embedding_dim: int,
         critic_n_head: int,
         sub_critic_count: int,
 ) -> None:
@@ -186,6 +197,11 @@ def run(
             noise_variance=noise_variance,
             action_formatter=action_formatter,
             reward_function=reward_function,
+            sub_critic_count=sub_critic_count,
+            actor_embedding_dim=actor_embedding_dim,
+            actor_n_head=actor_n_head,
+            critic_n_head=critic_n_head,
+            critic_embedding_dim=critic_embedding_dim,
         )
     else:
         validation_run(
@@ -223,7 +239,8 @@ def main(environment: str, train: bool) -> None:
             # Model parameters
             actor_embedding_dim = 512
             actor_n_head = actor_embedding_dim
-            critic_n_head = observation_length + action_length
+            critic_embedding_dim = 512
+            critic_n_head = critic_embedding_dim
             # Train parameters
             train_batch_size = 2 ** 6
             history_size = 2
@@ -248,7 +265,8 @@ def main(environment: str, train: bool) -> None:
             # Model parameters
             actor_embedding_dim = 512
             actor_n_head = actor_embedding_dim
-            critic_n_head = observation_length + action_length
+            critic_embedding_dim = 512
+            critic_n_head = critic_embedding_dim
             # Train parameters
             train_batch_size = 2 ** 6
             history_size = 2
@@ -270,7 +288,8 @@ def main(environment: str, train: bool) -> None:
             # Model parameters
             actor_embedding_dim = 512
             actor_n_head = actor_embedding_dim
-            critic_n_head = observation_length + action_length
+            critic_embedding_dim = 512
+            critic_n_head = critic_embedding_dim
             # Train parameters
             train_batch_size = 2 ** 6
             history_size = 5
@@ -311,6 +330,7 @@ def main(environment: str, train: bool) -> None:
         reward_function=reward_function,
         actor_embedding_dim=actor_embedding_dim,
         actor_n_head=actor_n_head,
+        critic_embedding_dim=critic_embedding_dim,
         critic_n_head=critic_n_head,
         sub_critic_count=sub_critic_count,
         )
