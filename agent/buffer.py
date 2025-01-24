@@ -109,3 +109,14 @@ class Buffer:
         assert terminations.shape == (number,)
         assert next_observations.shape == (number, history, self.__observation_length)
         return observations, actions, rewards, terminations, next_observations
+
+    @torch.no_grad()
+    def last_actions(self, history_size: int) -> torch.Tensor:
+        assert history_size > 0
+        start_index = self.__next_index - history_size
+        transposed_last_actions = self.__actions[start_index:self.__next_index] if start_index >= 0 \
+            else torch.concatenate((self.__actions[start_index:], self.__actions[:self.__next_index]))
+        assert transposed_last_actions.shape == (history_size, self.__train_agent_count, self.__action_length)
+        last_actions = transposed_last_actions.transpose(dim0=0, dim1=1)
+        assert last_actions.shape == (self.__train_agent_count, history_size, self.__action_length)
+        return last_actions
