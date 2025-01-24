@@ -33,6 +33,16 @@ class Runner:
         observation, info = self.__env.reset(seed=self.__seed)
         self.__update_observation_history(observation=observation)
 
+    @property
+    def observation(self) -> numpy.ndarray:
+        assert self.__observation_history.shape == (self.__history_size, self.__observation_length)
+        return self.__observation_history
+
+    @property
+    def observation_sequence_length(self) -> int:
+        assert self.__observation_count > 0
+        return self.__observation_count
+
     @staticmethod
     def __next_history(
             expected_item_length: int,
