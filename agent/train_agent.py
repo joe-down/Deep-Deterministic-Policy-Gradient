@@ -116,9 +116,10 @@ class TrainAgent:
     def step(self) -> None:
         observations = torch.stack([torch.tensor(observation_queue.get())
                                     for observation_queue in self.__runner_observation_queues])
-        observation_sequence_lengths = torch.stack([torch.tensor(observation_sequence_length_queue.get())
+        observation_sequence_lengths = torch.tensor([observation_sequence_length_queue.get()
                                                     for observation_sequence_length_queue
                                                     in self.__runner_observation_sequence_length_queues])
+        assert observation_sequence_lengths.dtype == torch.int
         actor_actions = self.__actor.forward_model(
             observations=observations,
             previous_actions=self.__buffer.last_actions(history_size=self.__history_size - 1),
