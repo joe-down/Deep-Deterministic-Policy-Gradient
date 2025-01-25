@@ -95,8 +95,7 @@ class ActorCriticBase(abc.ABC):
         assert result.shape == src.shape[:-2] + (self.__history_size, self.__output_features)
         return result
 
-    @abc.abstractmethod
-    def forward_model(
+    def _forward_model(
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
@@ -109,8 +108,7 @@ class ActorCriticBase(abc.ABC):
             model=self.__model,
         )
 
-    @abc.abstractmethod
-    def forward_target_model(
+    def _forward_target_model(
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,

@@ -1,7 +1,6 @@
 import pathlib
 import torch
 import typing
-import typing_extensions
 from actor_critic.actor_critic_base import ActorCriticBase
 from actor_critic.model import Model
 
@@ -41,7 +40,6 @@ class Actor(ActorCriticBase):
         assert action.shape == observations.shape[:-2] + (self._output_features,)
         return action
 
-    @typing_extensions.override
     def forward_model(
             self,
             observations: torch.Tensor,
@@ -50,14 +48,13 @@ class Actor(ActorCriticBase):
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observations=observations,
-            actions=super().forward_model(
+            actions=self._forward_model(
                 src=observations,
                 tgt=previous_actions,
                 src_sequence_length=observations_sequence_length,
             ),
         )
 
-    @typing_extensions.override
     def forward_target_model(
             self,
             observations: torch.Tensor,
@@ -66,7 +63,7 @@ class Actor(ActorCriticBase):
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observations=observations,
-            actions=super().forward_target_model(
+            actions=self._forward_target_model(
                 src=observations,
                 tgt=previous_actions,
                 src_sequence_length=observations_sequence_length,
@@ -83,7 +80,7 @@ class Actor(ActorCriticBase):
             update_target_network: bool,
             critic: "Critic",
     ) -> float:
-        unprocessed_best_actions = super().forward_model(
+        unprocessed_best_actions = self._forward_model(
             src=observations,
             tgt=previous_actions,
             src_sequence_length=observations_sequence_length

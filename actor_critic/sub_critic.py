@@ -1,7 +1,5 @@
 import pathlib
 import torch
-import typing_extensions
-
 from actor_critic.actor_critic_base import ActorCriticBase
 from actor_critic.model import Model
 
@@ -40,7 +38,6 @@ class SubCritic(ActorCriticBase):
         assert q.shape == observation_actions.shape[:-2]
         return q
 
-    @typing_extensions.override
     def forward_model(
             self,
             observation_actions: torch.Tensor,
@@ -49,14 +46,13 @@ class SubCritic(ActorCriticBase):
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observation_actions=observation_actions,
-            qs=super().forward_model(
+            qs=self._forward_model(
                 src=observation_actions,
                 tgt=previous_qs,
                 src_sequence_length=observation_actions_sequence_length,
             ),
         )
 
-    @typing_extensions.override
     def forward_target_model(
             self,
             observation_actions: torch.Tensor,
@@ -65,7 +61,7 @@ class SubCritic(ActorCriticBase):
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observation_actions=observation_actions,
-            qs=super().forward_target_model(
+            qs=self._forward_target_model(
                 src=observation_actions,
                 tgt=previous_qs,
                 src_sequence_length=observation_actions_sequence_length,
@@ -85,7 +81,7 @@ class SubCritic(ActorCriticBase):
         assert observation_actions.ndim >= 2
         assert q_targets.shape == observation_actions.shape[:-2] + (self._history_size,)
         assert 0 < target_update_proportion <= 1
-        prediction = super().forward_model(
+        prediction = self._forward_model(
             src=observation_actions,
             tgt=previous_qs,
             src_sequence_length=observation_actions_sequence_length,
