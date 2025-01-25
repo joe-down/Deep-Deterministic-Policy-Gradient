@@ -37,7 +37,6 @@ class Critic:
 
     @staticmethod
     def __forward_model_base(q_rewards: torch.Tensor) -> torch.Tensor:
-        print(q_rewards.shape)
         least_reward_values, _ = q_rewards.min(dim=0)
         assert least_reward_values.shape == q_rewards.shape[1:]
         return least_reward_values
@@ -83,7 +82,7 @@ class Critic:
     ) -> float:
         assert observations.ndim >= 2
         assert observations.shape[-2:] == (self.__history_size, self.__observation_length)
-        assert actions.shape == observations.shape[-2:] + (self.__history_size, self.__action_length)
+        assert actions.shape == observations.shape[:-2] + (self.__history_size, self.__action_length)
         assert qs.shape == observations.shape[-2:] + (self.__history_size,)
         assert observations_sequence_length.shape == observations.shape[:-2]
         assert next_observation.shape == observations.shape[:-2] + (1, self.__observation_length,)
