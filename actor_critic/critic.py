@@ -85,13 +85,13 @@ class Critic:
         assert terminations.shape == observations.shape[:-2]
         observation_actions = torch.concatenate((observations, actions), dim=-1)
         assert (observation_actions.shape
-                == observations[:-2] + (self.__history_size, self.__observation_length + self.__action_length))
+                == observations.shape[:-2] + (self.__history_size, self.__observation_length + self.__action_length))
         assert torch.all(observation_actions[..., :self.__observation_length] == observations)
         assert torch.all(observation_actions[..., self.__observation_length:] == actions)
         next_observations = torch.concatenate((observations[..., 1:, :], next_observation), dim=-2)
         assert next_observations.shape == observations.shape
-        assert next_observations[..., :-1, :] == observations[..., 1:, :]
-        assert next_observations[..., -1:, :] == next_observation
+        assert torch.all(next_observations[..., :-1, :] == observations[..., 1:, :])
+        assert torch.all(next_observations[..., -1:, :] == next_observation)
         best_next_action = actor.forward_target_model(
             observations=next_observations,
             previous_actions=actions[..., 1:, :],
