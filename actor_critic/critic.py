@@ -92,11 +92,13 @@ class Critic:
         assert next_observations.shape == observations.shape
         assert torch.all(next_observations[..., :-1, :] == observations[..., 1:, :])
         assert torch.all(next_observations[..., -1:, :] == next_observation)
-        best_next_action = actor.forward_target_model(
+        squeezed_best_next_action = actor.forward_target_model(
             observations=next_observations,
             previous_actions=actions[..., 1:, :],
             observations_sequence_length=next_observation_sequence_length,
         )
+        assert squeezed_best_next_action.shape == next_observation.shape[:-2] + (self.__action_length,)
+        best_next_action = squeezed_best_next_action.unsqueeze(dim=-2)
         assert best_next_action.shape == next_observation.shape[:-2] + (1, self.__action_length,)
         best_next_observation_action = torch.concatenate(tensors=(next_observation, best_next_action), dim=-1)
         assert (best_next_observation_action.shape
@@ -108,16 +110,17 @@ class Critic:
             dim=-2,
         )
         assert (best_next_observation_actions.shape
-                == observations.shape[:-1] + (self.__history_size, self.__observation_length + self.__action_length))
-        assert best_next_observation_actions[..., :-1, :self.__observation_length] == observations
-        assert best_next_observation_actions[..., :-1, self.__observation_length:] == actions
-        assert best_next_observation_actions[..., -1:, :self.__observation_length] == next_observation
-        assert best_next_observation_actions[..., -1:, self.__observation_length:] == best_next_action
+                == observations.shape[:-2] + (self.__history_size, self.__observation_length + self.__action_length))
+        assert torch.all(best_next_observation_actions[..., :-1, :self.__observation_length]
+                         == observations[..., 1:, :])
+        assert torch.all(best_next_observation_actions[..., :-1, self.__observation_length:] == actions[..., 1:, :])
+        assert torch.all(best_next_observation_actions[..., -1:, :self.__observation_length] == next_observation)
+        assert torch.all(best_next_observation_actions[..., -1:, self.__observation_length:] == best_next_action)
         worst_best_next_observation_actions_q = self.forward_target_model(
             observation_actions=best_next_observation_actions,
             observation_actions_sequence_length=next_observation_sequence_length,
         )
-        assert worst_best_next_observation_actions_q.shape== observations.shape[:-2]
+        assert worst_best_next_observation_actions_q.shape == observations.shape[:-2]
         q_targets = (immediate_rewards + discount_factor * (1 - terminations) * worst_best_next_observation_actions_q)
         loss = sum(sub_critic.update(
             observation_actions=observation_actions.detach(),
