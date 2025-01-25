@@ -122,7 +122,7 @@ class ActorCriticBase(abc.ABC):
         )
 
     def __key_padding_mask(self, sequence_lengths: torch.Tensor) -> torch.Tensor:
-        assert sequence_lengths.dtype == torch.int64
+        assert sequence_lengths.dtype == torch.long
         assert torch.all(sequence_lengths >= 0)
         flat_sequence_lengths = sequence_lengths.flatten()
         assert flat_sequence_lengths.shape == (sequence_lengths.nelement(),)
