@@ -18,7 +18,7 @@ class Buffer:
         self.__actions = torch.zeros((self.__buffer_size, self.__train_agent_count, self.__action_length))
         self.__rewards = torch.zeros(self.__buffer_size, self.__train_agent_count)
         self.__terminations = torch.zeros(self.__buffer_size, self.__train_agent_count)
-        self.__sequence_lengths = torch.zeros(self.__buffer_size, self.__train_agent_count)
+        self.__sequence_lengths = torch.zeros(self.__buffer_size, self.__train_agent_count, dtype=torch.int)
         self.__next_index = 0
         self.__entry_count = 0
 
@@ -43,6 +43,8 @@ class Buffer:
         assert rewards.shape == (self.__train_agent_count,)
         assert terminations.shape == (self.__train_agent_count,)
         assert sequence_lengths.shape == (self.__train_agent_count,)
+        assert sequence_lengths.dtype == torch.int
+        assert torch.all(sequence_lengths >= 0)
 
         self.__observations[self.__next_index] = observations
         self.__actions[self.__next_index] = actions
@@ -115,7 +117,9 @@ class Buffer:
         assert rewards.shape == (number,)
         assert terminations.shape == (number,)
         assert sequence_lengths.shape == (number,)
+        assert sequence_lengths.dtype == torch.int
         assert next_sequence_lengths.shape == (number,)
+        assert next_sequence_lengths.dtype == torch.int
         assert next_observation.shape == (number, 1, self.__observation_length)
         return observations, actions, rewards, terminations, next_observation, sequence_lengths, next_sequence_lengths
 
