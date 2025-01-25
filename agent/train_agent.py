@@ -136,6 +136,7 @@ class TrainAgent:
             actions=actions,
             rewards=rewards,
             terminations=terminations,
+            sequence_lengths=observation_sequence_lengths
         )
         self.__random_action_probabilities = torch.maximum(input=self.__random_action_probabilities
                                                                  * self.__random_action_probability_decay,
@@ -152,24 +153,28 @@ class TrainAgent:
         update_critic = iteration % 1 == 0  # TODO change this
         update_actor_target = iteration % 2 == 0  # TODO change this
         update_critic_target = iteration % 2 == 0  # TODO change this
-        observations, actions, rewards, terminations, next_observations \
+        observations, actions, rewards, terminations, next_observation, sequence_lengths, next_sequence_lengths \
             = self.__buffer.random_observations(number=self.__train_batch_size, history=self.__history_size)
         loss_1 = self.__critic.update(
-            observation_actions=torch.concatenate((observations.detach(), actions.detach()), dim=-1),
-            immediate_rewards=rewards.detach().unsqueeze(dim=-1),
-            terminations=terminations.detach().unsqueeze(dim=-1),
-            next_observations=next_observations.detach(),
-            discount_factor=self.__discount_factor,
-            noise_variance=self.__noise_variance,
             actor=self.__actor,
+            observations=observations.detach(),
+            actions=actions.detach(),
+            observations_sequence_length=sequence_lengths,
+            next_observation=next_observation.detach(),
+            next_observation_sequence_length=next_sequence_lengths,
+            immediate_rewards=rewards.detach(),
+            terminations=terminations.detach(),
+            discount_factor=self.__discount_factor,
+            update_target_model=update_critic_target,
             target_update_proportion=self.__target_update_proportion,
-            update_target_networks=update_critic_target,
         ).__float__() if update_critic else None
         loss_2 = self.__actor.update(
             observations=observations.detach(),
-            target_update_proportion=self.__target_update_proportion,
-            critic=self.__critic,
+            previous_actions=actions[..., :-1, :].detach(),
+            observations_sequence_length=sequence_lengths,
+            target_model_update_proportion=self.__target_update_proportion,
             update_target_network=update_actor_target,
+            critic=self.__critic,
         ).__float__() if update_actor else None
         return loss_1, loss_2
 

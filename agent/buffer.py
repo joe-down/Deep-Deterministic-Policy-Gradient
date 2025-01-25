@@ -16,8 +16,9 @@ class Buffer:
 
         self.__observations = torch.zeros((self.__buffer_size, self.__train_agent_count, self.__observation_length))
         self.__actions = torch.zeros((self.__buffer_size, self.__train_agent_count, self.__action_length))
-        self.__rewards: torch.Tensor = torch.zeros(self.__buffer_size, self.__train_agent_count)
-        self.__terminations: torch.Tensor = torch.zeros(self.__buffer_size, self.__train_agent_count)
+        self.__rewards = torch.zeros(self.__buffer_size, self.__train_agent_count)
+        self.__terminations = torch.zeros(self.__buffer_size, self.__train_agent_count)
+        self.__sequence_lengths = torch.zeros(self.__buffer_size, self.__train_agent_count)
         self.__next_index = 0
         self.__entry_count = 0
 
@@ -35,16 +36,19 @@ class Buffer:
              actions: torch.Tensor,
              rewards: torch.Tensor,
              terminations: torch.Tensor,
+             sequence_lengths: torch.Tensor,
              ) -> None:
         assert observations.shape == (self.__train_agent_count, self.__observation_length)
         assert actions.shape == (self.__train_agent_count, self.__action_length)
         assert rewards.shape == (self.__train_agent_count,)
         assert terminations.shape == (self.__train_agent_count,)
+        assert sequence_lengths.shape == (self.__train_agent_count,)
 
         self.__observations[self.__next_index] = observations
         self.__actions[self.__next_index] = actions
         self.__rewards[self.__next_index] = rewards
         self.__terminations[self.__next_index] = terminations
+        self.__sequence_lengths[self.__next_index] = sequence_lengths
 
         self.__next_index = (self.__next_index + 1) % self.__buffer_size
         self.__entry_count = self.__next_index if self.__entry_count < self.__next_index else self.__buffer_size
@@ -59,10 +63,11 @@ class Buffer:
         return torch.stack([tensor[entry_indexes - i, agent_indexes] for i in range(history)], dim=1)
 
     @torch.no_grad()
-    def random_observations(self,
-                            number: int,
-                            history: int
-                            ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def random_observations(
+            self,
+            number: int,
+            history: int
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         assert self.ready
         assert number >= 1
 
@@ -98,17 +103,21 @@ class Buffer:
                                        history=history)
         rewards = self.__rewards[entry_indexes, agent_indexes]
         terminations = self.__terminations[entry_indexes, agent_indexes]
-        next_observations = self.__history_index(tensor=self.__observations,
-                                                 entry_indexes=(entry_indexes + 1) % self.__buffer_size,
-                                                 agent_indexes=agent_indexes,
-                                                 history=history)
+        sequence_lengths = self.__sequence_lengths[entry_indexes, agent_indexes]
+        next_sequence_lengths = self.__sequence_lengths[(entry_indexes + 1) % self.__buffer_size, agent_indexes]
+        next_observation = self.__history_index(tensor=self.__observations,
+                                                entry_indexes=(entry_indexes + 1) % self.__buffer_size,
+                                                agent_indexes=agent_indexes,
+                                                history=1)
 
         assert observations.shape == (number, history, self.__observation_length)
         assert actions.shape == (number, history, self.__action_length)
         assert rewards.shape == (number,)
         assert terminations.shape == (number,)
-        assert next_observations.shape == (number, history, self.__observation_length)
-        return observations, actions, rewards, terminations, next_observations
+        assert sequence_lengths.shape == (number,)
+        assert next_sequence_lengths.shape == (number,)
+        assert next_observation.shape == (number, 1, self.__observation_length)
+        return observations, actions, rewards, terminations, next_observation, sequence_lengths, next_sequence_lengths
 
     @torch.no_grad()
     def last_actions(self, history_size: int) -> torch.Tensor:

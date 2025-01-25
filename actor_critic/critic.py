@@ -44,24 +44,20 @@ class Critic:
     def forward_model(
             self,
             observation_actions: torch.Tensor,
-            previous_qs: torch.Tensor,
             observation_actions_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_base(q_rewards=torch.stack([sub_critic.forward_model(
             observation_actions=observation_actions,
-            previous_qs=previous_qs,
             observation_actions_sequence_length=observation_actions_sequence_length,
         ) for sub_critic in self.__sub_critics]))
 
     def forward_target_model(
             self,
             observation_actions: torch.Tensor,
-            previous_qs: torch.Tensor,
             observation_actions_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_base(q_rewards=torch.stack([sub_critic.forward_target_model(
             observation_actions=observation_actions,
-            previous_qs=previous_qs,
             observation_actions_sequence_length=observation_actions_sequence_length,
         ) for sub_critic in self.__sub_critics]))
 
@@ -70,7 +66,6 @@ class Critic:
             actor: "Actor",
             observations: torch.Tensor,
             actions: torch.Tensor,
-            qs: torch.Tensor,
             observations_sequence_length: torch.Tensor,
             next_observation: torch.Tensor,
             next_observation_sequence_length: torch.Tensor,
@@ -83,7 +78,6 @@ class Critic:
         assert observations.ndim >= 2
         assert observations.shape[-2:] == (self.__history_size, self.__observation_length)
         assert actions.shape == observations.shape[:-2] + (self.__history_size, self.__action_length)
-        assert qs.shape == observations.shape[-2:] + (self.__history_size,)
         assert observations_sequence_length.shape == observations.shape[:-2]
         assert next_observation.shape == observations.shape[:-2] + (1, self.__observation_length,)
         assert next_observation_sequence_length.shape == observations_sequence_length.shape
@@ -121,14 +115,12 @@ class Critic:
         assert best_next_observation_actions[..., -1:, self.__observation_length:] == best_next_action
         worst_best_next_observation_actions_q = self.forward_target_model(
             observation_actions=best_next_observation_actions,
-            previous_qs=qs[..., 1:, :],
             observation_actions_sequence_length=next_observation_sequence_length,
         )
         assert worst_best_next_observation_actions_q.shape== observations.shape[:-2]
         q_targets = (immediate_rewards + discount_factor * (1 - terminations) * worst_best_next_observation_actions_q)
         loss = sum(sub_critic.update(
             observation_actions=observation_actions.detach(),
-            previous_qs=qs[:-1],
             observation_actions_sequence_length=observations_sequence_length,
             q_targets=q_targets,
             loss_function=self.__loss_function,

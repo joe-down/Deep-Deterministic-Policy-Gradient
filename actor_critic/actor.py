@@ -74,7 +74,6 @@ class Actor(ActorCriticBase):
             self,
             observations: torch.Tensor,
             previous_actions: torch.Tensor,
-            previous_qs: torch.Tensor,
             observations_sequence_length: torch.Tensor,
             target_model_update_proportion: float,
             update_target_network: bool,
@@ -96,7 +95,6 @@ class Actor(ActorCriticBase):
         self.__optimiser.zero_grad()
         q_loss = (-critic.forward_model(
             observation_actions=best_observation_actions,
-            previous_qs=previous_qs,
             observation_actions_sequence_length=observations_sequence_length,
         )).mean()
         assert q_loss.shape == ()

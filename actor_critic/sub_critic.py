@@ -41,14 +41,13 @@ class SubCritic(ActorCriticBase):
     def forward_model(
             self,
             observation_actions: torch.Tensor,
-            previous_qs: torch.Tensor,
             observation_actions_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observation_actions=observation_actions,
             qs=self._forward_model(
                 src=observation_actions,
-                tgt=previous_qs,
+                tgt=self.previous_qs(),
                 src_sequence_length=observation_actions_sequence_length,
             ),
         )
@@ -56,14 +55,13 @@ class SubCritic(ActorCriticBase):
     def forward_target_model(
             self,
             observation_actions: torch.Tensor,
-            previous_qs: torch.Tensor,
             observation_actions_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observation_actions=observation_actions,
             qs=self._forward_target_model(
                 src=observation_actions,
-                tgt=previous_qs,
+                tgt=self.previous_qs(),
                 src_sequence_length=observation_actions_sequence_length,
             ),
         )
@@ -71,7 +69,6 @@ class SubCritic(ActorCriticBase):
     def update(
             self,
             observation_actions: torch.Tensor,
-            previous_qs: torch.Tensor,
             observation_actions_sequence_length: torch.Tensor,
             q_targets: torch.Tensor,
             loss_function: torch.nn.MSELoss,
@@ -83,7 +80,7 @@ class SubCritic(ActorCriticBase):
         assert 0 < target_update_proportion <= 1
         prediction = self._forward_model(
             src=observation_actions,
-            tgt=previous_qs,
+            tgt=self.previous_qs(),
             src_sequence_length=observation_actions_sequence_length,
         )
         assert prediction.shape == q_targets.shape
