@@ -62,7 +62,7 @@ class Buffer:
                         agent_indexes: torch.Tensor,
                         history: int,
                         ) -> torch.Tensor:
-        return torch.stack([tensor[entry_indexes - i, agent_indexes] for i in range(history)], dim=1)
+        return torch.stack([tensor[entry_indexes - i, agent_indexes] for i in range(history - 1, -1, -1)], dim=1)
 
     @torch.no_grad()
     def random_observations(
@@ -118,9 +118,9 @@ class Buffer:
         assert full_range_actions.shape == (number, history + 2, self.__action_length)
         observations = full_range_observations[..., 1:-1, :]
         actions = full_range_actions[..., 1:-1, :]
-        rewards = self.__rewards[entry_indexes-1, agent_indexes]
-        terminations = self.__terminations[entry_indexes-1, agent_indexes]
-        sequence_lengths = self.__sequence_lengths[entry_indexes-1, agent_indexes]
+        rewards = self.__rewards[entry_indexes - 1, agent_indexes]
+        terminations = self.__terminations[entry_indexes - 1, agent_indexes]
+        sequence_lengths = self.__sequence_lengths[entry_indexes - 1, agent_indexes]
         previous_observations = full_range_observations[..., :-2, :]
         previous_actions = full_range_actions[..., :-2, :]
         previous_sequence_lengths = self.__sequence_lengths[entry_indexes - 1, agent_indexes,]
