@@ -2,7 +2,7 @@ import pathlib
 import torch
 import typing
 from actor_critic.actor_critic_base import ActorCriticBase
-from actor_critic.model import Model
+from actor_critic.actor_model import ActorModel
 
 if typing.TYPE_CHECKING:
     from actor_critic.critic import Critic
@@ -20,7 +20,7 @@ class Actor(ActorCriticBase):
     ) -> None:
         super().__init__(
             load_path=load_path / "action",
-            model=Model(
+            model=ActorModel(
                 src_features=observation_length,
                 tgt_features=action_length,
                 history_size=history_size,

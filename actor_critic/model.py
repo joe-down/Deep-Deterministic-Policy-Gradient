@@ -21,12 +21,11 @@ class Model(torch.nn.Module):
         self.__history_size = history_size
         self.__embedding_dim = embedding_dim
         super().__init__()
-        self.__src_embedding = torch.nn.Embedding(num_embeddings=src_features, embedding_dim=embedding_dim)
-        self.__tgt_embedding = torch.nn.Embedding(num_embeddings=tgt_features, embedding_dim=embedding_dim)
+        self.__src_feature_expansion = torch.nn.Linear(in_features=src_features, out_features=embedding_dim)
+        self.__tgt_feature_expansion =  torch.nn.Linear(in_features=tgt_features, out_features=embedding_dim)
         self.__transformer = torch.nn.Transformer(d_model=embedding_dim, nhead=n_head, batch_first=True)
         self.__post_transformer = torch.nn.Sequential(
             torch.nn.Linear(in_features=embedding_dim, out_features=tgt_features),
-            torch.nn.Sigmoid(),
         )
 
     def forward(
@@ -45,9 +44,13 @@ class Model(torch.nn.Module):
         assert src_key_padding_mask.shape == src.shape[:-1]
         assert tgt_key_padding_mask.dtype == torch.bool
         assert tgt_key_padding_mask.shape == tgt.shape[:-1]
+        expanded_src = self.__src_feature_expansion.forward(input=src.float())
+        assert expanded_src.shape == src.shape[:-1] +(self.__embedding_dim,)
+        expanded_tgt = self.__tgt_feature_expansion.forward(input=tgt.float())
+        assert expanded_tgt.shape == src.shape[:-1] + (self.__embedding_dim,)
         transformer_out = self.__transformer.forward(
-            src=self.__src_embedding.forward(input=src),
-            tgt=self.__tgt_embedding.forward(input=tgt),
+            src=expanded_src,
+            tgt=expanded_tgt,
             tgt_mask=tgt_mask,
             src_key_padding_mask=src_key_padding_mask,
             tgt_key_padding_mask=tgt_key_padding_mask,
