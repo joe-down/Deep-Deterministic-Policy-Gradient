@@ -99,7 +99,7 @@ class Actor(ActorCriticBase):
         )).mean()
         assert q_loss.shape == ()
         transformer_loss = self.__transformer_loss_function.forward(
-            input=unprocessed_best_actions[:-1],
+            input=unprocessed_best_actions[..., :-1, :],
             target=previous_actions,
         )
         assert transformer_loss.shape == ()
