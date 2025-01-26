@@ -145,9 +145,9 @@ class Critic:
         loss = sum(sub_critic.update(
             observation_actions=observation_actions.detach(),
             previous_observation_actions=previous_observation_actions.detach(),
-            observation_actions_sequence_length=observations_sequence_length,
+            observation_actions_sequence_length=observations_sequence_length.detach(),
             previous_observation_actions_sequence_length=previous_observations_sequence_length.detach(),
-            q_targets=q_targets,
+            q_targets=q_targets.detach(),
             loss_function=self.__loss_function,
             update_target_model=update_target_model,
             target_update_proportion=target_update_proportion,
