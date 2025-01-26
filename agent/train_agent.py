@@ -128,7 +128,7 @@ class TrainAgent:
         random_action_indexes = torch.rand_like(self.__random_action_probabilities) < self.__random_action_probabilities
         actions = actor_actions * ~random_action_indexes + torch.rand_like(actor_actions) * random_action_indexes
         for action, runner_action_queue in zip(actions, self.__runner_action_queues):
-            runner_action_queue.put(action.squeeze().cpu().detach().numpy())
+            runner_action_queue.put(action.cpu().detach().numpy())
         runner_steps = [dead_reward_queue.get() for dead_reward_queue in self.__runner_dead_reward_queues]
         terminations = torch.tensor([dead for dead, reward in runner_steps])
         rewards = torch.tensor([reward for dead, reward in runner_steps])
