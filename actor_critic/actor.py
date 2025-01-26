@@ -106,7 +106,7 @@ class Actor(ActorCriticBase):
             target=previous_actions.detach(),
         )
         assert history_loss.shape == ()
-        loss = 2 ** q_loss + history_loss
+        loss = q_loss + history_loss
         assert loss.shape == ()
         loss.backward()
         self.__optimiser.step()
