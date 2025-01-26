@@ -232,20 +232,20 @@ def main(environment: str, train: bool) -> None:
         case 'CartPole-v1':
             # Environment properties
             def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
-                return numpy.round(action).astype(numpy.int32)
+                return numpy.round(action.squeeze()).astype(numpy.int32)
 
             observation_length = 4
             action_length = 1
             # Model parameters
-            actor_embedding_dim = 512
+            actor_embedding_dim = 2 ** 8
             actor_n_head = actor_embedding_dim
-            critic_embedding_dim = 512
+            critic_embedding_dim = 2 ** 8
             critic_n_head = critic_embedding_dim
             # Train parameters
-            train_batch_size = 2 ** 6
-            history_size = 2
             agent_count = 2 ** 6
-            buffer_size = 2 ** 22
+            train_batch_size = 2 ** 10
+            history_size = 2 ** 4
+            buffer_size = 2 ** 10
             validation_interval = 100
             validation_repeats = 100
             discount_factor = 0.99
@@ -337,4 +337,4 @@ def main(environment: str, train: bool) -> None:
 
 
 if __name__ == '__main__':
-    main(environment='BipedalWalker-v3', train=False)
+    main(environment='CartPole-v1', train=True)
