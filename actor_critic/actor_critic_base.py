@@ -1,56 +1,206 @@
+import abc
 import copy
 import pathlib
-import abc
-
 import torch
 import typing
 
+from actor_critic.model import Model
 
-class ActorCriticBase:
-    def __init__(self, load_path: pathlib.Path, neural_network: torch.nn.Sequential) -> None:
-        self.__neural_network: torch.nn.Sequential = neural_network
+
+class ActorCriticBase(abc.ABC):
+    def __init__(
+            self,
+            load_path: pathlib.Path,
+            model: Model,
+            input_features: int,
+            output_features: int,
+            history_size: int,
+    ) -> None:
+        assert input_features > 0
+        assert output_features > 0
+        self.__model = model
+        self.__input_features = input_features
+        self.__output_features = output_features
+        self.__history_size = history_size
         try:
-            self.__neural_network.load_state_dict(torch.load(load_path))
+            self.__model.load_state_dict(torch.load(load_path))
             print("model loaded")
         except FileNotFoundError:
-            self.__neural_network.apply(self.__neural_network_initialisation)
+            self.__model.apply(self.__initialise_model)
             print("model initialised")
-        self.__target_neural_network = copy.deepcopy(neural_network)
-        self._update_target_network(target_update_proportion=1)
-
-    @property
-    def _parameters(self) -> typing.Iterator[torch.nn.Parameter]:
-        return self.__neural_network.parameters()
-
-    @property
-    def state_dict(self) -> dict[str, typing.Any]:
-        return self.__neural_network.state_dict()
-
-    @property
-    @abc.abstractmethod
-    def _nn_output_shape(self) -> tuple[int, ...]:
-        raise NotImplementedError
+        self.__target_model = copy.deepcopy(self.__model)
+        self.__tgt_mask = torch.triu(-torch.inf * torch.ones(size=(history_size, history_size)), diagonal=1)
+        assert self.__tgt_mask.shape == (self.__history_size, self.__history_size)
 
     @staticmethod
-    def __neural_network_initialisation(module: torch.nn.Module) -> None:
+    def __initialise_model(module: torch.nn.Module) -> None:
         if isinstance(module, torch.nn.Linear):
             torch.nn.init.xavier_uniform_(module.weight)
 
-    def __forward_network_base(self, observations: torch.Tensor, network: torch.nn.Sequential) -> torch.Tensor:
-        assert observations.ndim == 3
-        result = network(observations)
-        assert result.shape[0] == observations.shape[0]
-        assert result.shape[1:] == self._nn_output_shape
+    @property
+    def _model_parameters(self) -> typing.Iterator[torch.nn.Parameter]:
+        return self.__model.parameters()
+
+    @property
+    def model_state_dict(self) -> dict[str, typing.Any]:
+        return self.__model.state_dict()
+
+    @property
+    def _input_features(self) -> int:
+        return self.__input_features
+
+    @property
+    def _output_features(self) -> int:
+        return self.__output_features
+
+    @property
+    def _history_size(self) -> int:
+        return self.__history_size
+
+    def __forward_model_base(
+            self,
+            src: torch.Tensor,
+            tgt: torch.Tensor,
+            src_key_padding_mask: torch.Tensor,
+            tgt_key_padding_mask: torch.Tensor,
+            model: Model,
+    ) -> torch.Tensor:
+        assert src.ndim > 2
+        assert src.shape[-2:] == (self.__history_size, self.__input_features)
+        assert tgt.shape == src.shape[:-2] + (self.__history_size - 1, self.__output_features)
+        shifted_tgt = torch.concatenate(
+            tensors=(tgt, torch.rand(size=src.shape[:-2] + (1, self.__output_features))),
+            dim=-2,
+        )
+        assert shifted_tgt.shape == src.shape[:-2] + (self.__history_size, self.__output_features)
+        assert torch.all(shifted_tgt[..., :-1, :] == tgt)
+        assert torch.all(shifted_tgt[..., -1, :] >= 0)
+        assert torch.all(shifted_tgt[..., -1, :] <= 1)
+        result = model.forward(
+            src=src,
+            tgt=shifted_tgt,
+            tgt_mask=self.__tgt_mask,
+            src_key_padding_mask=src_key_padding_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+        )
+        assert result.shape == src.shape[:-2] + (self.__history_size, self.__output_features)
         return result
 
-    def forward_network(self, observations: torch.Tensor) -> torch.Tensor:
-        return self.__forward_network_base(observations=observations, network=self.__neural_network)
+    def __forward_model(
+            self,
+            src: torch.Tensor,
+            tgt: torch.Tensor,
+            src_sequence_length: torch.Tensor,
+            model: Model,
+    ) -> torch.Tensor:
+        src_key_padding_mask = self.__key_padding_mask(sequence_lengths=src_sequence_length)
+        assert src_key_padding_mask.shape == src.shape[:-2] + (self.__history_size,)
+        tgt_key_padding_mask = torch.concatenate(
+            tensors=(src_key_padding_mask[..., :-1], torch.ones(size=src_key_padding_mask.shape[:-1] + (1,)),),
+            dim=-1
+        ).bool()
+        assert tgt_key_padding_mask.shape == tgt.shape[:-2] + (self.__history_size,)
+        assert torch.all(tgt_key_padding_mask[..., :-1] == src_key_padding_mask[..., :-1])
+        assert torch.all(tgt_key_padding_mask[..., -1] == True)
+        result = self.__forward_model_base(
+            src=src,
+            tgt=tgt,
+            src_key_padding_mask=src_key_padding_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+            model=model,
+        )
+        assert result.shape == src.shape[:-2] + (self.__history_size, self.__output_features)
+        return result
 
-    def forward_target_network(self, observations: torch.Tensor) -> torch.Tensor:
-        return self.__forward_network_base(observations=observations, network=self.__target_neural_network)
+    def __forward_model_no_tgt(
+            self,
+            src: torch.Tensor,
+            src_sequence_length: torch.Tensor,
+            model: Model,
+    ) -> torch.Tensor:
+        src_key_padding_mask = self.__key_padding_mask(sequence_lengths=src_sequence_length)
+        assert src_key_padding_mask.shape == src.shape[:-2] + (self.__history_size,)
+        tgt = torch.rand(size=src.shape[:-2] + (self.__history_size - 1, self.__output_features))
+        tgt_key_padding_mask = torch.ones_like(src_key_padding_mask).bool()
+        assert torch.all(tgt_key_padding_mask == True)
+        result = self.__forward_model_base(
+            src=src,
+            tgt=tgt,
+            src_key_padding_mask=src_key_padding_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+            model=model,
+        )
+        assert result.shape == src.shape[:-2] + (self.__history_size, self.__output_features)
+        return result
 
-    def _update_target_network(self, target_update_proportion: float) -> None:
+    def _forward_model(
+            self,
+            src: torch.Tensor,
+            tgt: torch.Tensor,
+            src_sequence_length: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.__forward_model(
+            src=src,
+            tgt=tgt,
+            src_sequence_length=src_sequence_length,
+            model=self.__model,
+        )
+
+    def _forward_target_model(
+            self,
+            src: torch.Tensor,
+            tgt: torch.Tensor,
+            src_sequence_length: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.__forward_model(
+            src=src,
+            tgt=tgt,
+            src_sequence_length=src_sequence_length,
+            model=self.__target_model,
+        )
+
+    def _forward_model_no_tgt(
+            self,
+            src: torch.Tensor,
+            src_sequence_length: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.__forward_model_no_tgt(
+            src=src,
+            src_sequence_length=src_sequence_length,
+            model=self.__model,
+        )
+
+    def _forward_target_model_no_tgt(
+            self,
+            src: torch.Tensor,
+            src_sequence_length: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.__forward_model_no_tgt(
+            src=src,
+            src_sequence_length=src_sequence_length,
+            model=self.__target_model,
+        )
+
+    def __key_padding_mask(self, sequence_lengths: torch.Tensor) -> torch.Tensor:
+        assert sequence_lengths.dtype == torch.long
+        assert torch.all(sequence_lengths >= 0)
+        flat_sequence_lengths = sequence_lengths.flatten()
+        assert flat_sequence_lengths.shape == (sequence_lengths.nelement(),)
+        capped_flat_sequence_length = flat_sequence_lengths.clamp(min=0, max=self.__history_size)
+        assert torch.all(capped_flat_sequence_length >= 0)
+        assert torch.all(capped_flat_sequence_length <= self.__history_size)
+        flat_padding_mask = torch.stack(
+            [torch.concatenate((torch.ones(self.__history_size - sequence_length).bool(),
+                                torch.zeros(sequence_length).bool()))
+             for sequence_length in capped_flat_sequence_length]
+        )
+        assert flat_padding_mask.shape == (sequence_lengths.nelement(), self.__history_size)
+        padding_mask = flat_padding_mask.reshape(sequence_lengths.shape + (self.__history_size,))
+        assert padding_mask.shape == sequence_lengths.shape + (self.__history_size,)
+        return padding_mask.bool()
+
+    def _update_target_model(self, target_update_proportion: float) -> None:
         assert 0 <= target_update_proportion <= 1
-        for parameter, target_parameter in zip(self._parameters, self.__target_neural_network.parameters()):
-            target_parameter.data = ((1 - target_update_proportion) * target_parameter.data
-                                     + target_update_proportion * parameter.data)
+        for parameter, target_parameter in zip(self.__model.parameters(), self.__target_model.parameters()):
+            target_parameter.data \
+                = ((1 - target_update_proportion) * target_parameter.data + target_update_proportion * parameter.data)

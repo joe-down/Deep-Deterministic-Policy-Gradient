@@ -17,25 +17,31 @@ def validation_run(
         load_path: pathlib.Path,
         observation_length: int,
         action_length: int,
-        actor_nn_width: int,
-        actor_nn_depth: int,
         environment: str,
         seed: int,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
         reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
+        history_size: int,
+        actor_embedding_dim: int,
+        actor_n_head: int,
 ) -> None:
-    actor = Actor(load_path=load_path,
-                  observation_length=observation_length,
-                  action_length=action_length,
-                  nn_width=actor_nn_width,
-                  nn_depth=actor_nn_depth,
-                  )
+    actor = Actor(
+        load_path=load_path,
+        observation_length=observation_length,
+        action_length=action_length,
+        history_size=history_size,
+        embedding_dim=actor_embedding_dim,
+        n_head=actor_n_head,
+    )
     runner = Runner(
         environment=environment,
         seed=seed,
         action_formatter=action_formatter,
         render_mode="human",
         reward_function=reward_function,
+        observation_length=observation_length,
+        action_length=action_length,
+        history_size=history_size,
     )
     try:
         while True:
@@ -49,12 +55,9 @@ def train_run(
         validation_interval: int,
         validation_repeats: int,
         save_path: pathlib.Path,
-        actor_nn_width: int,
-        actor_nn_depth: int,
-        critic_nn_width: int,
-        critic_nn_depth: int,
         discount_factor: float,
         train_batch_size: int,
+        history_size: int,
         buffer_size: int,
         random_action_probability: float,
         minimum_random_action_probability: float,
@@ -67,17 +70,19 @@ def train_run(
         noise_variance: float,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
         reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
+        sub_critic_count: int,
+        actor_embedding_dim: int,
+        actor_n_head: int,
+        critic_embedding_dim: int,
+        critic_n_head: int,
 ) -> None:
     train_agent = TrainAgent(train_agent_count=agent_count,
                              save_path=save_path,
                              environment=environment,
                              seed=seed + 1,
-                             actor_nn_width=actor_nn_width,
-                             actor_nn_depth=actor_nn_depth,
-                             critic_nn_width=critic_nn_width,
-                             critic_nn_depth=critic_nn_depth,
                              discount_factor=discount_factor,
                              train_batch_size=train_batch_size,
+                             history_size=history_size,
                              buffer_size=buffer_size,
                              random_action_probability=random_action_probability,
                              minimum_random_action_probability=minimum_random_action_probability,
@@ -88,12 +93,20 @@ def train_run(
                              noise_variance=noise_variance,
                              action_formatter=action_formatter,
                              reward_function=reward_function,
+                             sub_critic_count=sub_critic_count,
+                             actor_embedding_dim=actor_embedding_dim,
+                             actor_n_head=actor_n_head,
+                             critic_embedding_dim=critic_embedding_dim,
+                             critic_n_head=critic_n_head,
                              )
     validation_runner = Runner(
         environment=environment,
         seed=seed,
         action_formatter=action_formatter,
         reward_function=reward_function,
+        observation_length=observation_length,
+        action_length=action_length,
+        history_size=history_size,
     )
     best_state_dicts = train_agent.state_dicts
     figure = matplotlib.pyplot.figure()
@@ -141,12 +154,9 @@ def run(
         validation_interval: int,
         validation_repeats: int,
         save_path: pathlib.Path,
-        actor_nn_width: int,
-        actor_nn_depth: int,
-        critic_nn_width: int,
-        critic_nn_depth: int,
         discount_factor: float,
         train_batch_size: int,
+        history_size: int,
         buffer_size: int,
         random_action_probability: float,
         minimum_random_action_probability: float,
@@ -159,6 +169,11 @@ def run(
         noise_variance: float,
         action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
         reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
+        actor_embedding_dim: int,
+        actor_n_head: int,
+        critic_embedding_dim: int,
+        critic_n_head: int,
+        sub_critic_count: int,
 ) -> None:
     torch.set_default_device('cuda')
     if train:
@@ -167,12 +182,9 @@ def run(
             validation_interval=validation_interval,
             validation_repeats=validation_repeats,
             save_path=save_path,
-            actor_nn_width=actor_nn_width,
-            actor_nn_depth=actor_nn_depth,
-            critic_nn_width=critic_nn_width,
-            critic_nn_depth=critic_nn_depth,
             discount_factor=discount_factor,
             train_batch_size=train_batch_size,
+            history_size=history_size,
             buffer_size=buffer_size,
             random_action_probability=random_action_probability,
             minimum_random_action_probability=minimum_random_action_probability,
@@ -185,18 +197,24 @@ def run(
             noise_variance=noise_variance,
             action_formatter=action_formatter,
             reward_function=reward_function,
+            sub_critic_count=sub_critic_count,
+            actor_embedding_dim=actor_embedding_dim,
+            actor_n_head=actor_n_head,
+            critic_n_head=critic_n_head,
+            critic_embedding_dim=critic_embedding_dim,
         )
     else:
         validation_run(
             load_path=save_path,
             observation_length=observation_length,
             action_length=action_length,
-            actor_nn_width=actor_nn_width,
-            actor_nn_depth=actor_nn_depth,
             environment=environment,
             seed=seed,
             action_formatter=action_formatter,
             reward_function=reward_function,
+            history_size=history_size,
+            actor_embedding_dim=actor_embedding_dim,
+            actor_n_head=actor_n_head,
         )
 
 
@@ -205,6 +223,7 @@ def main(environment: str, train: bool) -> None:
     random_action_probability = 1
     minimum_random_action_probability = 0
     seed = 42
+    sub_critic_count = 2
 
     def reward_function(observation: numpy.ndarray, reward: float, dead: bool) -> float:
         return reward
@@ -213,19 +232,20 @@ def main(environment: str, train: bool) -> None:
         case 'CartPole-v1':
             # Environment properties
             def action_formatter(action: numpy.ndarray) -> numpy.ndarray:
-                return numpy.round(action).astype(numpy.int32)
+                return numpy.round(action.squeeze()).astype(numpy.int32)
 
             observation_length = 4
             action_length = 1
             # Model parameters
-            actor_nn_width = observation_length
-            actor_nn_depth = 2 ** 1
-            critic_nn_width = observation_length + action_length
-            critic_nn_depth = 2 ** 1
+            actor_embedding_dim = 2 ** 8
+            actor_n_head = actor_embedding_dim
+            critic_embedding_dim = 2 ** 8
+            critic_n_head = critic_embedding_dim
             # Train parameters
-            train_batch_size = 2 ** 6
             agent_count = 2 ** 6
-            buffer_size = 2 ** 22
+            train_batch_size = 2 ** 10
+            history_size = 2 ** 4
+            buffer_size = 2 ** 10
             validation_interval = 100
             validation_repeats = 100
             discount_factor = 0.99
@@ -243,12 +263,13 @@ def main(environment: str, train: bool) -> None:
             observation_length = 6
             action_length = 1
             # Model parameters
-            actor_nn_width = observation_length
-            actor_nn_depth = 2 ** 1
-            critic_nn_width = observation_length + action_length
-            critic_nn_depth = 2 ** 1
+            actor_embedding_dim = 512
+            actor_n_head = actor_embedding_dim
+            critic_embedding_dim = 512
+            critic_n_head = critic_embedding_dim
             # Train parameters
             train_batch_size = 2 ** 6
+            history_size = 2
             agent_count = 2 ** 6
             buffer_size = 2 ** 22
             validation_interval = 100
@@ -265,12 +286,13 @@ def main(environment: str, train: bool) -> None:
             observation_length = 24
             action_length = 4
             # Model parameters
-            actor_nn_width = 2 ** 4
-            actor_nn_depth = 2 ** 1
-            critic_nn_width = 2 ** 4
-            critic_nn_depth = 2 ** 1
+            actor_embedding_dim = 512
+            actor_n_head = actor_embedding_dim
+            critic_embedding_dim = 512
+            critic_n_head = critic_embedding_dim
             # Train parameters
             train_batch_size = 2 ** 6
+            history_size = 5
             agent_count = 2 ** 7
             buffer_size = 2 ** 8
             validation_interval = 100
@@ -291,12 +313,9 @@ def main(environment: str, train: bool) -> None:
         validation_interval=validation_interval,
         validation_repeats=validation_repeats,
         save_path=full_model_path,
-        actor_nn_width=actor_nn_width,
-        actor_nn_depth=actor_nn_depth,
-        critic_nn_width=critic_nn_width,
-        critic_nn_depth=critic_nn_depth,
         discount_factor=discount_factor,
         train_batch_size=train_batch_size,
+        history_size=history_size,
         buffer_size=buffer_size,
         random_action_probability=random_action_probability,
         minimum_random_action_probability=minimum_random_action_probability,
@@ -309,8 +328,13 @@ def main(environment: str, train: bool) -> None:
         noise_variance=noise_variance,
         action_formatter=action_formatter,
         reward_function=reward_function,
+        actor_embedding_dim=actor_embedding_dim,
+        actor_n_head=actor_n_head,
+        critic_embedding_dim=critic_embedding_dim,
+        critic_n_head=critic_n_head,
+        sub_critic_count=sub_critic_count,
         )
 
 
 if __name__ == '__main__':
-    main(environment='CartPole-v1', train=False)
+    main(environment='CartPole-v1', train=True)
