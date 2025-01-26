@@ -32,7 +32,7 @@ class Actor(ActorCriticBase):
             history_size=history_size,
         )
         self.__optimiser = torch.optim.AdamW(params=self._model_parameters)
-        self.__transformer_loss_function = torch.nn.MSELoss()
+        self.__history_loss_function = torch.nn.MSELoss()
 
     def __forward_model_postprocess(self, observations: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
         assert actions.shape == observations.shape[:-2] + (self._history_size, self._output_features)
@@ -98,12 +98,12 @@ class Actor(ActorCriticBase):
             observation_actions_sequence_length=observations_sequence_length,
         )).mean()
         assert q_loss.shape == ()
-        transformer_loss = self.__transformer_loss_function.forward(
+        history_loss = self.__history_loss_function.forward(
             input=unprocessed_best_actions[..., :-1, :],
             target=previous_actions,
         )
-        assert transformer_loss.shape == ()
-        loss = q_loss + transformer_loss
+        assert history_loss.shape == ()
+        loss = q_loss + history_loss
         assert loss.shape == ()
         loss.backward()
         self.__optimiser.step()
