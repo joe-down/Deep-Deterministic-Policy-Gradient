@@ -117,8 +117,8 @@ class TrainAgent:
         observations = torch.stack([torch.tensor(observation_queue.get())
                                     for observation_queue in self.__runner_observation_queues])
         observation_sequence_lengths = torch.tensor([observation_sequence_length_queue.get()
-                                                    for observation_sequence_length_queue
-                                                    in self.__runner_observation_sequence_length_queues])
+                                                     for observation_sequence_length_queue
+                                                     in self.__runner_observation_sequence_length_queues])
         assert observation_sequence_lengths.dtype == torch.long
         actor_actions = self.__actor.forward_model(
             observations=observations,
@@ -154,15 +154,27 @@ class TrainAgent:
         update_critic = iteration % 1 == 0  # TODO change this
         update_actor_target = iteration % 2 == 0  # TODO change this
         update_critic_target = iteration % 2 == 0  # TODO change this
-        observations, actions, rewards, terminations, next_observation, sequence_lengths, next_sequence_lengths \
-            = self.__buffer.random_observations(number=self.__train_batch_size, history=self.__history_size)
+        (observations,
+         actions,
+         rewards,
+         terminations,
+         next_observations,
+         sequence_lengths,
+         next_sequence_lengths,
+         previous_observations,
+         previous_actions,
+         previous_sequence_lengths,
+         ) = self.__buffer.random_observations(number=self.__train_batch_size, history=self.__history_size)
         loss_1 = self.__critic.update(
             actor=self.__actor,
             observations=observations.detach(),
             actions=actions.detach(),
+            previous_observations=previous_observations.detach(),
+            previous_actions=previous_actions.detach(),
             observations_sequence_length=sequence_lengths.detach(),
-            next_observation=next_observation.detach(),
-            next_observation_sequence_length=next_sequence_lengths.detach(),
+            previous_observations_sequence_length=previous_sequence_lengths.detach(),
+            next_observations=next_observations.detach(),
+            next_observations_sequence_length=next_sequence_lengths.detach(),
             immediate_rewards=rewards.detach(),
             terminations=terminations.detach(),
             discount_factor=self.__discount_factor,

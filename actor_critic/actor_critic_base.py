@@ -61,13 +61,13 @@ class ActorCriticBase(abc.ABC):
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
-            src_sequence_length: torch.Tensor,
+            src_key_padding_mask: torch.Tensor,
+            tgt_key_padding_mask: torch.Tensor,
             model: Model,
     ) -> torch.Tensor:
         assert src.ndim > 2
         assert src.shape[-2:] == (self.__history_size, self.__input_features)
         assert tgt.shape == src.shape[:-2] + (self.__history_size - 1, self.__output_features)
-        assert src_sequence_length.shape == src.shape[:-2]
         shifted_tgt = torch.concatenate(
             tensors=(tgt, torch.rand(size=src.shape[:-2] + (1, self.__output_features))),
             dim=-2,
@@ -76,15 +76,6 @@ class ActorCriticBase(abc.ABC):
         assert torch.all(shifted_tgt[..., :-1, :] == tgt)
         assert torch.all(shifted_tgt[..., -1, :] >= 0)
         assert torch.all(shifted_tgt[..., -1, :] <= 1)
-        src_key_padding_mask = self.__key_padding_mask(sequence_lengths=src_sequence_length)
-        assert src_key_padding_mask.shape == src.shape[:-1]
-        tgt_key_padding_mask = torch.concatenate(
-            tensors=(src_key_padding_mask[..., :-1], torch.ones(size=src_key_padding_mask.shape[:-1] + (1,)),),
-            dim=-1
-        ).bool()
-        assert tgt_key_padding_mask.shape == shifted_tgt.shape[:-1]
-        assert torch.all(tgt_key_padding_mask[..., :-1] == src_key_padding_mask[..., :-1])
-        assert torch.all(tgt_key_padding_mask[..., -1] == True)
         result = model.forward(
             src=src,
             tgt=shifted_tgt,
@@ -95,13 +86,60 @@ class ActorCriticBase(abc.ABC):
         assert result.shape == src.shape[:-2] + (self.__history_size, self.__output_features)
         return result
 
+    def __forward_model(
+            self,
+            src: torch.Tensor,
+            tgt: torch.Tensor,
+            src_sequence_length: torch.Tensor,
+            model: Model,
+    ) -> torch.Tensor:
+        src_key_padding_mask = self.__key_padding_mask(sequence_lengths=src_sequence_length)
+        assert src_key_padding_mask.shape == src.shape[:-2] + (self.__history_size,)
+        tgt_key_padding_mask = torch.concatenate(
+            tensors=(src_key_padding_mask[..., :-1], torch.ones(size=src_key_padding_mask.shape[:-1] + (1,)),),
+            dim=-1
+        ).bool()
+        assert tgt_key_padding_mask.shape == tgt.shape[:-2] + (self.__history_size,)
+        assert torch.all(tgt_key_padding_mask[..., :-1] == src_key_padding_mask[..., :-1])
+        assert torch.all(tgt_key_padding_mask[..., -1] == True)
+        result = self.__forward_model_base(
+            src=src,
+            tgt=tgt,
+            src_key_padding_mask=src_key_padding_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+            model=model,
+        )
+        assert result.shape == src.shape[:-2] + (self.__history_size, self.__output_features)
+        return result
+
+    def __forward_model_no_tgt(
+            self,
+            src: torch.Tensor,
+            src_sequence_length: torch.Tensor,
+            model: Model,
+    ) -> torch.Tensor:
+        src_key_padding_mask = self.__key_padding_mask(sequence_lengths=src_sequence_length)
+        assert src_key_padding_mask.shape == src.shape[:-2] + (self.__history_size,)
+        tgt = torch.rand(size=src.shape[:-2] + (self.__history_size - 1, self.__output_features))
+        tgt_key_padding_mask = torch.ones(size=tgt.shape[:-1]).bool()
+        assert torch.all(tgt_key_padding_mask == True)
+        result = self.__forward_model_base(
+            src=src,
+            tgt=tgt,
+            src_key_padding_mask=src_key_padding_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+            model=model,
+        )
+        assert result.shape == src.shape[:-2] + (self.__history_size, self.__output_features)
+        return result
+
     def _forward_model(
             self,
             src: torch.Tensor,
             tgt: torch.Tensor,
             src_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
-        return self.__forward_model_base(
+        return self.__forward_model(
             src=src,
             tgt=tgt,
             src_sequence_length=src_sequence_length,
@@ -114,9 +152,31 @@ class ActorCriticBase(abc.ABC):
             tgt: torch.Tensor,
             src_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
-        return self.__forward_model_base(
+        return self.__forward_model(
             src=src,
             tgt=tgt,
+            src_sequence_length=src_sequence_length,
+            model=self.__target_model,
+        )
+
+    def _forward_model_no_tgt(
+            self,
+            src: torch.Tensor,
+            src_sequence_length: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.__forward_model_no_tgt(
+            src=src,
+            src_sequence_length=src_sequence_length,
+            model=self.__model,
+        )
+
+    def _forward_target_model_no_tgt(
+            self,
+            src: torch.Tensor,
+            src_sequence_length: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.__forward_model_no_tgt(
+            src=src,
             src_sequence_length=src_sequence_length,
             model=self.__target_model,
         )

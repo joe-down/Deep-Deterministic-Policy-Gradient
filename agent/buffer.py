@@ -31,13 +31,14 @@ class Buffer:
         return (self.__next_index - 1) % self.__buffer_size
 
     @torch.no_grad()
-    def push(self,
-             observations: torch.Tensor,
-             actions: torch.Tensor,
-             rewards: torch.Tensor,
-             terminations: torch.Tensor,
-             sequence_lengths: torch.Tensor,
-             ) -> None:
+    def push(
+            self,
+            observations: torch.Tensor,
+            actions: torch.Tensor,
+            rewards: torch.Tensor,
+            terminations: torch.Tensor,
+            sequence_lengths: torch.Tensor,
+    ) -> None:
         assert observations.shape == (self.__train_agent_count, self.__observation_length)
         assert actions.shape == (self.__train_agent_count, self.__action_length)
         assert rewards.shape == (self.__train_agent_count,)
@@ -57,19 +58,16 @@ class Buffer:
 
     @staticmethod
     @torch.no_grad()
-    def __history_index(tensor: torch.Tensor,
-                        entry_indexes: torch.Tensor,
-                        agent_indexes: torch.Tensor,
-                        history: int,
-                        ) -> torch.Tensor:
+    def __history_index(
+            tensor: torch.Tensor,
+            entry_indexes: torch.Tensor,
+            agent_indexes: torch.Tensor,
+            history: int,
+    ) -> torch.Tensor:
         return torch.stack([tensor[entry_indexes - i, agent_indexes] for i in range(history - 1, -1, -1)], dim=1)
 
     @torch.no_grad()
-    def random_observations(
-            self,
-            number: int,
-            history: int
-    ) -> tuple[
+    def random_observations(self, number: int, history: int) -> tuple[
         torch.Tensor,
         torch.Tensor,
         torch.Tensor,
@@ -116,37 +114,39 @@ class Buffer:
                                                   agent_indexes=agent_indexes,
                                                   history=history + 2)
         assert full_range_actions.shape == (number, history + 2, self.__action_length)
+
         observations = full_range_observations[..., 1:-1, :]
-        actions = full_range_actions[..., 1:-1, :]
-        rewards = self.__rewards[entry_indexes - 1, agent_indexes]
-        terminations = self.__terminations[entry_indexes - 1, agent_indexes]
-        sequence_lengths = self.__sequence_lengths[entry_indexes - 1, agent_indexes]
-        previous_observations = full_range_observations[..., :-2, :]
-        previous_actions = full_range_actions[..., :-2, :]
-        previous_sequence_lengths = self.__sequence_lengths[entry_indexes - 1, agent_indexes,]
-        next_observation = full_range_observations[..., -1:, :]
-        next_sequence_lengths = self.__sequence_lengths[entry_indexes, agent_indexes]
         assert observations.shape == (number, history, self.__observation_length)
+        actions = full_range_actions[..., 1:-1, :]
         assert actions.shape == (number, history, self.__action_length)
+        rewards = self.__rewards[entry_indexes - 1, agent_indexes]
         assert rewards.shape == (number,)
+        terminations = self.__terminations[entry_indexes - 1, agent_indexes]
         assert terminations.shape == (number,)
+        sequence_lengths = self.__sequence_lengths[entry_indexes - 1, agent_indexes]
         assert sequence_lengths.shape == (number,)
         assert sequence_lengths.dtype == torch.long
+        previous_observations = full_range_observations[..., :-2, :]
         assert previous_observations.shape == (number, history, self.__observation_length)
         assert torch.all(previous_observations[..., 1:, :] == observations[..., :-1, :])
+        previous_actions = full_range_actions[..., :-2, :]
         assert previous_actions.shape == (number, history, self.__action_length)
         assert torch.all(previous_actions[..., 1:, :] == actions[..., :-1, :])
+        previous_sequence_lengths = self.__sequence_lengths[entry_indexes - 2, agent_indexes,]
         assert previous_sequence_lengths.shape == (number,)
         assert previous_sequence_lengths.dtype == torch.long
+        next_observations = full_range_observations[..., 2:, :]
+        assert next_observations.shape == (number, history, self.__observation_length)
+        assert torch.all(next_observations[..., :-1, :] == observations[..., 1:, :])
+        next_sequence_lengths = self.__sequence_lengths[entry_indexes, agent_indexes]
         assert next_sequence_lengths.shape == (number,)
         assert next_sequence_lengths.dtype == torch.long
-        assert next_observation.shape == (number, 1, self.__observation_length)
         return (
             observations,
             actions,
             rewards,
             terminations,
-            next_observation,
+            next_observations,
             sequence_lengths,
             next_sequence_lengths,
             previous_observations,

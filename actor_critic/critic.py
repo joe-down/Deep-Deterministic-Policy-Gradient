@@ -61,14 +61,28 @@ class Critic:
             observation_actions_sequence_length=observation_actions_sequence_length,
         ) for sub_critic in self.__sub_critics]))
 
+    def observation_actions(self, observations: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
+        assert observations.ndim >= 2
+        assert observations.shape[-2:] == (self.__history_size, self.__observation_length)
+        assert actions.shape == observations.shape[:-2] + (self.__history_size, self.__action_length)
+        observation_actions = torch.concatenate((observations, actions), dim=-1)
+        assert (observation_actions.shape
+                == observations.shape[:-2] + (self.__history_size, self.__observation_length + self.__action_length))
+        assert torch.all(observation_actions[..., :self.__observation_length] == observations)
+        assert torch.all(observation_actions[..., self.__observation_length:] == actions)
+        return observation_actions
+
     def update(
             self,
             actor: "Actor",
             observations: torch.Tensor,
             actions: torch.Tensor,
+            previous_observations: torch.Tensor,
+            previous_actions: torch.Tensor,
             observations_sequence_length: torch.Tensor,
-            next_observation: torch.Tensor,
-            next_observation_sequence_length: torch.Tensor,
+            previous_observations_sequence_length: torch.Tensor,
+            next_observations: torch.Tensor,
+            next_observations_sequence_length: torch.Tensor,
             immediate_rewards: torch.Tensor,
             terminations: torch.Tensor,
             discount_factor: float,
@@ -78,53 +92,61 @@ class Critic:
         assert observations.ndim >= 2
         assert observations.shape[-2:] == (self.__history_size, self.__observation_length)
         assert actions.shape == observations.shape[:-2] + (self.__history_size, self.__action_length)
+        assert previous_observations.shape == observations.shape
+        assert torch.all(previous_observations[..., 1:, :] == observations[..., :-1, :])
+        assert previous_actions.shape == actions.shape
+        assert torch.all(previous_actions[..., 1:, :] == actions[..., :-1, :])
         assert observations_sequence_length.shape == observations.shape[:-2]
-        assert next_observation.shape == observations.shape[:-2] + (1, self.__observation_length,)
-        assert next_observation_sequence_length.shape == observations_sequence_length.shape
-        assert immediate_rewards.shape == observations.shape[:-2]
-        assert terminations.shape == observations.shape[:-2]
-        observation_actions = torch.concatenate((observations, actions), dim=-1)
-        assert (observation_actions.shape
-                == observations.shape[:-2] + (self.__history_size, self.__observation_length + self.__action_length))
-        assert torch.all(observation_actions[..., :self.__observation_length] == observations)
-        assert torch.all(observation_actions[..., self.__observation_length:] == actions)
-        next_observations = torch.concatenate((observations[..., 1:, :], next_observation), dim=-2)
+        assert previous_observations_sequence_length.shape == previous_observations.shape[:-2]
         assert next_observations.shape == observations.shape
         assert torch.all(next_observations[..., :-1, :] == observations[..., 1:, :])
-        assert torch.all(next_observations[..., -1:, :] == next_observation)
+        assert next_observations_sequence_length.shape == observations_sequence_length.shape
+        assert immediate_rewards.shape == observations.shape[:-2]
+        assert terminations.shape == observations.shape[:-2]
+        assert 0 <= discount_factor <= 1
+        assert 0 <= target_update_proportion <= 1
+        observation_actions = self.observation_actions(observations=observations, actions=actions)
+        previous_observation_actions = self.observation_actions(
+            observations=previous_observations,
+            actions=previous_actions,
+        )
+        assert torch.all(previous_observation_actions[..., 1:, :] == observation_actions[..., :-1, :])
+
         squeezed_best_next_action = actor.forward_target_model(
             observations=next_observations,
             previous_actions=actions[..., 1:, :],
-            observations_sequence_length=next_observation_sequence_length,
+            observations_sequence_length=next_observations_sequence_length,
         )
-        assert squeezed_best_next_action.shape == next_observation.shape[:-2] + (self.__action_length,)
+        assert squeezed_best_next_action.shape == next_observations.shape[:-2] + (self.__action_length,)
         best_next_action = squeezed_best_next_action.unsqueeze(dim=-2)
-        assert best_next_action.shape == next_observation.shape[:-2] + (1, self.__action_length,)
-        best_next_observation_action = torch.concatenate(tensors=(next_observation, best_next_action), dim=-1)
-        assert (best_next_observation_action.shape
-                == next_observation.shape[:-2] + (1, self.__observation_length + self.__action_length,))
-        assert torch.all(best_next_observation_action[..., :self.__observation_length] == next_observation)
-        assert torch.all(best_next_observation_action[..., self.__observation_length:] == best_next_action)
-        best_next_observation_actions = torch.concatenate(
-            tensors=(observation_actions[..., 1:, :], best_next_observation_action),
-            dim=-2,
+        assert best_next_action.shape == next_observations.shape[:-2] + (1, self.__action_length,)
+        best_next_actions = torch.concatenate(tensors=(actions[..., 1:, :], best_next_action), dim=-2)
+        assert best_next_actions.shape == actions.shape
+        best_next_observation_actions = self.observation_actions(
+            observations=next_observations,
+            actions=best_next_actions,
         )
-        assert (best_next_observation_actions.shape
-                == observations.shape[:-2] + (self.__history_size, self.__observation_length + self.__action_length))
+        assert best_next_observation_actions.shape == observation_actions.shape
         assert torch.all(best_next_observation_actions[..., :-1, :self.__observation_length]
                          == observations[..., 1:, :])
         assert torch.all(best_next_observation_actions[..., :-1, self.__observation_length:] == actions[..., 1:, :])
-        assert torch.all(best_next_observation_actions[..., -1:, :self.__observation_length] == next_observation)
+        assert torch.all(best_next_observation_actions[..., -1:, :self.__observation_length]
+                         == next_observations[..., -1:, :])
         assert torch.all(best_next_observation_actions[..., -1:, self.__observation_length:] == best_next_action)
+
         worst_best_next_observation_actions_q = self.forward_target_model(
             observation_actions=best_next_observation_actions,
-            observation_actions_sequence_length=next_observation_sequence_length,
+            observation_actions_sequence_length=next_observations_sequence_length,
         )
         assert worst_best_next_observation_actions_q.shape == observations.shape[:-2]
-        q_targets = (immediate_rewards + discount_factor * (1 - terminations) * worst_best_next_observation_actions_q)
+        q_targets = (immediate_rewards
+                     + discount_factor * (1 - terminations) * worst_best_next_observation_actions_q).unsqueeze(dim=-1)
+        assert q_targets.shape == observations.shape[:-2] + (1,)
         loss = sum(sub_critic.update(
             observation_actions=observation_actions.detach(),
+            previous_observation_actions=previous_observation_actions.detach(),
             observation_actions_sequence_length=observations_sequence_length,
+            previous_observation_actions_sequence_length=previous_observations_sequence_length.detach(),
             q_targets=q_targets,
             loss_function=self.__loss_function,
             update_target_model=update_target_model,

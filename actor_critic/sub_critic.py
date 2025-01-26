@@ -45,9 +45,8 @@ class SubCritic(ActorCriticBase):
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observation_actions=observation_actions,
-            qs=self._forward_model(
+            qs=self._forward_model_no_tgt(
                 src=observation_actions,
-                tgt=self.previous_qs(),
                 src_sequence_length=observation_actions_sequence_length,
             ),
         )
@@ -59,9 +58,8 @@ class SubCritic(ActorCriticBase):
     ) -> torch.Tensor:
         return self.__forward_model_postprocess(
             observation_actions=observation_actions,
-            qs=self._forward_target_model(
+            qs=self._forward_target_model_no_tgt(
                 src=observation_actions,
-                tgt=self.previous_qs(),
                 src_sequence_length=observation_actions_sequence_length,
             ),
         )
@@ -69,23 +67,30 @@ class SubCritic(ActorCriticBase):
     def update(
             self,
             observation_actions: torch.Tensor,
+            previous_observation_actions: torch.Tensor,
             observation_actions_sequence_length: torch.Tensor,
+            previous_observation_actions_sequence_length: torch.Tensor,
             q_targets: torch.Tensor,
             loss_function: torch.nn.MSELoss,
             update_target_model: bool,
             target_update_proportion: float,
     ) -> float:
         assert observation_actions.ndim >= 2
-        assert q_targets.shape == observation_actions.shape[:-2] + (self._history_size,)
-        assert 0 < target_update_proportion <= 1
+        assert q_targets.shape == observation_actions.shape[:-2] + (self._output_features,)
+        previous_qs = self._forward_target_model_no_tgt(
+            src=previous_observation_actions,
+            src_sequence_length=previous_observation_actions_sequence_length,
+        )
+        assert previous_qs.shape == observation_actions.shape[:-2] + (self._history_size, self._output_features)
         prediction = self._forward_model(
             src=observation_actions,
-            tgt=self.previous_qs(),
+            tgt=previous_qs[..., 1:, :],
             src_sequence_length=observation_actions_sequence_length,
         )
-        assert prediction.shape == q_targets.shape
+        assert prediction.shape == observation_actions.shape[:-2] + (self._history_size, self._output_features)
         self.__optimiser.zero_grad()
-        loss = loss_function.forward(input=prediction, target=q_targets)
+        loss = (loss_function.forward(input=prediction[..., -1, :], target=q_targets)
+                + loss_function.forward(input=prediction[..., :-1, :], target=previous_qs[..., 1:, :]))
         assert loss.shape == ()
         loss.backward()
         self.__optimiser.step()
