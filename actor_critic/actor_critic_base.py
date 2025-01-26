@@ -121,7 +121,7 @@ class ActorCriticBase(abc.ABC):
         src_key_padding_mask = self.__key_padding_mask(sequence_lengths=src_sequence_length)
         assert src_key_padding_mask.shape == src.shape[:-2] + (self.__history_size,)
         tgt = torch.rand(size=src.shape[:-2] + (self.__history_size - 1, self.__output_features))
-        tgt_key_padding_mask = torch.ones(size=tgt.shape[:-1]).bool()
+        tgt_key_padding_mask = torch.ones_like(src_key_padding_mask).bool()
         assert torch.all(tgt_key_padding_mask == True)
         result = self.__forward_model_base(
             src=src,
