@@ -128,7 +128,7 @@ class TrainAgent:
         random_action_indexes = torch.rand_like(self.__random_action_probabilities) < self.__random_action_probabilities
         actions = actor_actions * ~random_action_indexes + torch.rand_like(actor_actions) * random_action_indexes
         for action, runner_action_queue in zip(actions, self.__runner_action_queues):
-            runner_action_queue.put(action.cpu().detach().numpy())
+            runner_action_queue.put(action.detach().cpu().numpy())
         runner_steps = [dead_reward_queue.get() for dead_reward_queue in self.__runner_dead_reward_queues]
         terminations = torch.tensor([dead for dead, reward in runner_steps])
         rewards = torch.tensor([reward for dead, reward in runner_steps])
@@ -167,24 +167,24 @@ class TrainAgent:
          ) = self.__buffer.random_observations(number=self.__train_batch_size, history=self.__history_size)
         loss_1 = self.__critic.update(
             actor=self.__actor,
-            observations=observations.detach(),
-            actions=actions.detach(),
-            previous_observations=previous_observations.detach(),
-            previous_actions=previous_actions.detach(),
-            observations_sequence_length=sequence_lengths.detach(),
-            previous_observations_sequence_length=previous_sequence_lengths.detach(),
-            next_observations=next_observations.detach(),
-            next_observations_sequence_length=next_sequence_lengths.detach(),
-            immediate_rewards=rewards.detach(),
-            terminations=terminations.detach(),
+            observations=observations,
+            actions=actions,
+            previous_observations=previous_observations,
+            previous_actions=previous_actions,
+            observations_sequence_length=sequence_lengths,
+            previous_observations_sequence_length=previous_sequence_lengths,
+            next_observations=next_observations,
+            next_observations_sequence_length=next_sequence_lengths,
+            immediate_rewards=rewards,
+            terminations=terminations,
             discount_factor=self.__discount_factor,
             update_target_model=update_critic_target,
             target_update_proportion=self.__target_update_proportion,
         ).__float__() if update_critic else None
         loss_2 = self.__actor.update(
-            observations=observations.detach(),
-            previous_actions=actions[..., :-1, :].detach(),
-            observations_sequence_length=sequence_lengths.detach(),
+            observations=observations,
+            previous_actions=actions[..., :-1, :],
+            observations_sequence_length=sequence_lengths,
             target_model_update_proportion=self.__target_update_proportion,
             update_target_network=update_actor_target,
             critic=self.__critic,

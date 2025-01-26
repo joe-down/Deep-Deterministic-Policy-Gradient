@@ -78,19 +78,19 @@ class SubCritic(ActorCriticBase):
         assert observation_actions.ndim >= 2
         assert q_targets.shape == observation_actions.shape[:-2] + (self._output_features,)
         previous_qs = self._forward_target_model_no_tgt(
-            src=previous_observation_actions,
-            src_sequence_length=previous_observation_actions_sequence_length,
+            src=previous_observation_actions.detach(),
+            src_sequence_length=previous_observation_actions_sequence_length.detach(),
         )
         assert previous_qs.shape == observation_actions.shape[:-2] + (self._history_size, self._output_features)
         prediction = self._forward_model(
-            src=observation_actions,
-            tgt=previous_qs[..., 1:, :],
-            src_sequence_length=observation_actions_sequence_length,
+            src=observation_actions.detach(),
+            tgt=previous_qs[..., 1:, :].detach(),
+            src_sequence_length=observation_actions_sequence_length.detach(),
         )
         assert prediction.shape == observation_actions.shape[:-2] + (self._history_size, self._output_features)
         self.__optimiser.zero_grad()
-        loss = (loss_function.forward(input=prediction[..., -1, :], target=q_targets)
-                + loss_function.forward(input=prediction[..., :-1, :], target=previous_qs[..., 1:, :]))
+        loss = (loss_function.forward(input=prediction[..., -1, :], target=q_targets.detach())
+                + loss_function.forward(input=prediction[..., :-1, :], target=previous_qs[..., 1:, :].detach()))
         assert loss.shape == ()
         loss.backward()
         self.__optimiser.step()
