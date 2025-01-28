@@ -32,7 +32,7 @@ class Actor(ActorCriticBase):
             history_size=history_size,
         )
         self.__optimiser = torch.optim.AdamW(params=self._model_parameters)
-        self.__history_loss_function = torch.nn.MSELoss()
+        self.__history_loss_function = torch.nn.HuberLoss()
 
     def __forward_model_postprocess(self, observations: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
         assert actions.shape == observations.shape[:-2] + (self._history_size, self._output_features)

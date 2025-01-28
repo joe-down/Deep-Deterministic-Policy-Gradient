@@ -71,7 +71,7 @@ class SubCritic(ActorCriticBase):
             observation_actions_sequence_length: torch.Tensor,
             previous_observation_actions_sequence_length: torch.Tensor,
             q_targets: torch.Tensor,
-            loss_function: torch.nn.MSELoss,
+            loss_function: torch.nn.Module,
             update_target_model: bool,
             target_update_proportion: float,
     ) -> float:

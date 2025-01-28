@@ -29,7 +29,7 @@ class Critic:
             embedding_dim=embedding_dim,
             n_head=n_head,
         ) for i in range(sub_critic_count)]
-        self.__loss_function = torch.nn.MSELoss()
+        self.__loss_function = torch.nn.HuberLoss()
 
     @property
     def model_state_dicts(self) -> tuple[dict[str, typing.Any], ...]:
