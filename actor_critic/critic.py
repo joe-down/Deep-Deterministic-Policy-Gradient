@@ -21,6 +21,7 @@ class Critic:
         self.__observation_length = observation_length
         self.__action_length = action_length
         self.__history_size = history_size
+        self.__sub_critic_count = sub_critic_count
         self.__sub_critics = [SubCritic(
             load_path=load_path / f"q{i}",
             observation_length=observation_length,
@@ -142,14 +143,42 @@ class Critic:
         q_targets = (immediate_rewards
                      + discount_factor * (1 - terminations) * worst_best_next_observation_actions_q).unsqueeze(dim=-1)
         assert q_targets.shape == observations.shape[:-2] + (1,)
+        sub_critic_observation_count = observation_actions.size(dim=-3) // self.__sub_critic_count
+        assert sub_critic_observation_count > 0
+        assert sub_critic_observation_count * self.__sub_critic_count <= observation_actions.size(dim=-3)
         loss = sum(sub_critic.update(
-            observation_actions=observation_actions.detach(),
-            previous_observation_actions=previous_observation_actions.detach(),
-            observation_actions_sequence_length=observations_sequence_length.detach(),
-            previous_observation_actions_sequence_length=previous_observations_sequence_length.detach(),
-            q_targets=q_targets.detach(),
+            observation_actions
+            =observation_actions[
+             ...,
+             sub_critic_number * sub_critic_observation_count:(sub_critic_number + 1) * sub_critic_observation_count,
+             :,
+             :,
+             ].detach(),
+            previous_observation_actions
+            =previous_observation_actions[
+             ...,
+             sub_critic_number * sub_critic_observation_count:(sub_critic_number + 1) * sub_critic_observation_count,
+             :,
+             :,
+             ].detach(),
+            observation_actions_sequence_length
+            =observations_sequence_length[
+             ...,
+             sub_critic_number * sub_critic_observation_count:(sub_critic_number + 1) * sub_critic_observation_count,
+             ].detach(),
+            previous_observation_actions_sequence_length
+            =previous_observations_sequence_length[
+             ...,
+             sub_critic_number * sub_critic_observation_count:(sub_critic_number + 1) * sub_critic_observation_count,
+             ].detach(),
+            q_targets
+            =q_targets[
+             ...,
+             sub_critic_number * sub_critic_observation_count:(sub_critic_number + 1) * sub_critic_observation_count,
+             :,
+             ].detach(),
             loss_function=self.__loss_function,
             update_target_model=update_target_model,
             target_update_proportion=target_update_proportion,
-        ) for sub_critic in self.__sub_critics)
+        ) for sub_critic_number, sub_critic in enumerate(self.__sub_critics))
         return loss
