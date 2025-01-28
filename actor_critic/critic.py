@@ -146,7 +146,7 @@ class Critic:
         sub_critic_observation_count = observation_actions.size(dim=-3) // self.__sub_critic_count
         assert sub_critic_observation_count > 0
         assert sub_critic_observation_count * self.__sub_critic_count <= observation_actions.size(dim=-3)
-        loss = sum(sub_critic.update(
+        loss = torch.tensor(data=[sub_critic.update(
             observation_actions
             =observation_actions[
              ...,
@@ -180,5 +180,6 @@ class Critic:
             loss_function=self.__loss_function,
             update_target_model=update_target_model,
             target_update_proportion=target_update_proportion,
-        ) for sub_critic_number, sub_critic in enumerate(self.__sub_critics))
-        return loss
+        ) for sub_critic_number, sub_critic in enumerate(self.__sub_critics)]).mean()
+        assert loss.shape == ()
+        return loss.item()
