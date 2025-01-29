@@ -82,6 +82,8 @@ class SubCritic(ActorCriticBase):
             src_sequence_length=previous_observation_actions_sequence_length.detach(),
         )
         assert previous_qs.shape == observation_actions.shape[:-2] + (self._history_size, self._output_features)
+        loss_target = torch.concatenate(tensors=(previous_qs[..., 1:, :], q_targets.unsqueeze(dim=-2)), dim=-2)
+        assert loss_target.shape == observation_actions.shape[:-2] + (self._history_size, self._output_features)
         prediction = self._forward_model(
             src=observation_actions.detach(),
             tgt=previous_qs[..., 1:, :].detach(),
@@ -89,8 +91,7 @@ class SubCritic(ActorCriticBase):
         )
         assert prediction.shape == observation_actions.shape[:-2] + (self._history_size, self._output_features)
         self.__optimiser.zero_grad()
-        loss = (loss_function.forward(input=prediction[..., -1, :], target=q_targets.detach())
-                + loss_function.forward(input=prediction[..., :-1, :], target=previous_qs[..., 1:, :].detach()))
+        loss = loss_function.forward(input=prediction, target=loss_target.detach())
         assert loss.shape == ()
         loss.backward()
         self.__optimiser.step()
