@@ -24,7 +24,7 @@ class Buffer:
 
     @property
     def ready(self) -> bool:
-        return self.__entry_count >= 2
+        return self.__entry_count >= 3
 
     @property
     def __incomplete_index(self) -> int:
