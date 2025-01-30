@@ -148,12 +148,11 @@ class TrainAgent:
             runner.join()
 
     def train(self, iteration: int) -> tuple[float, float]:
-        if not self.__buffer.ready:
+        if not self.__buffer.ready(history_size=self.__history_size):
             return 0, 0
-        update_actor = iteration % 2 == 0  # TODO change this
+        update_actor = iteration % 1 == 0  # TODO change this
         update_critic = iteration % 1 == 0  # TODO change this
-        update_actor_target = iteration % 2 == 0  # TODO change this
-        update_critic_target = iteration % 2 == 0  # TODO change this
+        update_actor_target = iteration % 1 == 0  # TODO change this
         (observations,
          actions,
          rewards,
@@ -164,7 +163,7 @@ class TrainAgent:
          previous_observations,
          previous_actions,
          previous_sequence_lengths,
-         ) = self.__buffer.random_observations(number=self.__train_batch_size, history=self.__history_size)
+         ) = self.__buffer.random_observations(number=self.__train_batch_size, history_size=self.__history_size)
         loss_1 = self.__critic.update(
             actor=self.__actor,
             observations=observations,

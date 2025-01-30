@@ -22,13 +22,12 @@ class Buffer:
         self.__next_index = 0
         self.__entry_count = 0
 
-    @property
-    def ready(self) -> bool:
-        return self.__entry_count >= 3
+    def ready(self, history_size: int) -> bool:
+        return self.__entry_count >= history_size + 2
 
     @property
-    def __incomplete_index(self) -> int:
-        return (self.__next_index - 1) % self.__buffer_size
+    def __full(self) -> bool:
+        return self.__entry_count == self.__buffer_size
 
     @torch.no_grad()
     def push(
@@ -62,12 +61,12 @@ class Buffer:
             tensor: torch.Tensor,
             entry_indexes: torch.Tensor,
             agent_indexes: torch.Tensor,
-            history: int,
+            history_size: int,
     ) -> torch.Tensor:
-        return torch.stack([tensor[entry_indexes - i, agent_indexes] for i in range(history - 1, -1, -1)], dim=1)
+        return torch.stack([tensor[entry_indexes - i, agent_indexes] for i in range(history_size - 1, -1, -1)], dim=1)
 
     @torch.no_grad()
-    def random_observations(self, number: int, history: int) -> tuple[
+    def random_observations(self, number: int, history_size: int) -> tuple[
         torch.Tensor,
         torch.Tensor,
         torch.Tensor,
@@ -79,46 +78,35 @@ class Buffer:
         torch.Tensor,
         torch.Tensor,
     ]:
-        assert self.ready
-        assert number >= 1
+        assert number > 0
+        assert self.ready(history_size=history_size)
+        required_history = history_size + 2
 
-        agent_index_starts = (torch.arange(0, self.__train_agent_count) * self.__entry_count).unsqueeze(-1)
-        assert agent_index_starts.shape == (self.__train_agent_count, 1)
-        assert agent_index_starts[-1] == self.__entry_count * (self.__train_agent_count - 1)
-        agent_valid_buffer_indexes = torch.concatenate((
-            torch.arange(0, self.__incomplete_index),
-            torch.arange(self.__incomplete_index + 1, self.__entry_count),
-        )).unsqueeze(0)
-        assert agent_valid_buffer_indexes.shape == (1, self.__entry_count - 1)
-        assert self.__incomplete_index not in agent_valid_buffer_indexes
-        valid_buffer_indexes = (agent_index_starts + agent_valid_buffer_indexes).flatten()
-        assert valid_buffer_indexes.shape == (self.__train_agent_count * (self.__entry_count - 1),)
-        for i in range(self.__train_agent_count):
-            assert i * self.__entry_count + self.__incomplete_index not in valid_buffer_indexes
-
-        random_valid_buffer_indexes = valid_buffer_indexes[torch.randperm(valid_buffer_indexes.size(0))[:number]]
-        repeated_random_valid_buffer_indexes = torch.concatenate(
-            (random_valid_buffer_indexes.repeat(number // random_valid_buffer_indexes.size(0)),
-             random_valid_buffer_indexes[:number % random_valid_buffer_indexes.size(0)]),
-        )
-        entry_indexes = repeated_random_valid_buffer_indexes // self.__train_agent_count
-        agent_indexes = repeated_random_valid_buffer_indexes // self.__entry_count
+        agent_probabilities = torch.ones(size=(self.__train_agent_count,))
+        agent_indexes = torch.multinomial(input=agent_probabilities, num_samples=number)
+        entry_probabilities = torch.ones(size=(self.__buffer_size,))
+        invalid_entry_indexes = (torch.arange(
+            start=self.__next_index,
+            end=self.__next_index + required_history - 1,
+        ) % self.__buffer_size).unique()
+        entry_probabilities[invalid_entry_indexes] = 0
+        entry_indexes = torch.multinomial(input=entry_probabilities, num_samples=number)
 
         full_range_observations = self.__history_index(tensor=self.__observations,
                                                        entry_indexes=entry_indexes,
                                                        agent_indexes=agent_indexes,
-                                                       history=history + 2)
-        assert full_range_observations.shape == (number, history + 2, self.__observation_length)
+                                                       history_size=required_history)
+        assert full_range_observations.shape == (number, required_history, self.__observation_length)
         full_range_actions = self.__history_index(tensor=self.__actions,
                                                   entry_indexes=entry_indexes,
                                                   agent_indexes=agent_indexes,
-                                                  history=history + 2)
-        assert full_range_actions.shape == (number, history + 2, self.__action_length)
+                                                  history_size=required_history)
+        assert full_range_actions.shape == (number, required_history, self.__action_length)
 
         observations = full_range_observations[..., 1:-1, :]
-        assert observations.shape == (number, history, self.__observation_length)
+        assert observations.shape == (number, history_size, self.__observation_length)
         actions = full_range_actions[..., 1:-1, :]
-        assert actions.shape == (number, history, self.__action_length)
+        assert actions.shape == (number, history_size, self.__action_length)
         rewards = self.__rewards[entry_indexes - 1, agent_indexes]
         assert rewards.shape == (number,)
         terminations = self.__terminations[entry_indexes - 1, agent_indexes]
@@ -127,16 +115,16 @@ class Buffer:
         assert sequence_lengths.shape == (number,)
         assert sequence_lengths.dtype == torch.long
         previous_observations = full_range_observations[..., :-2, :]
-        assert previous_observations.shape == (number, history, self.__observation_length)
+        assert previous_observations.shape == (number, history_size, self.__observation_length)
         assert torch.all(previous_observations[..., 1:, :] == observations[..., :-1, :])
         previous_actions = full_range_actions[..., :-2, :]
-        assert previous_actions.shape == (number, history, self.__action_length)
+        assert previous_actions.shape == (number, history_size, self.__action_length)
         assert torch.all(previous_actions[..., 1:, :] == actions[..., :-1, :])
         previous_sequence_lengths = self.__sequence_lengths[entry_indexes - 2, agent_indexes,]
         assert previous_sequence_lengths.shape == (number,)
         assert previous_sequence_lengths.dtype == torch.long
         next_observations = full_range_observations[..., 2:, :]
-        assert next_observations.shape == (number, history, self.__observation_length)
+        assert next_observations.shape == (number, history_size, self.__observation_length)
         assert torch.all(next_observations[..., :-1, :] == observations[..., 1:, :])
         next_sequence_lengths = self.__sequence_lengths[entry_indexes, agent_indexes]
         assert next_sequence_lengths.shape == (number,)
