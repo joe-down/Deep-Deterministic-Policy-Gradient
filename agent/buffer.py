@@ -83,14 +83,14 @@ class Buffer:
         required_history = history_size + 2
 
         agent_probabilities = torch.ones(size=(self.__train_agent_count,))
-        agent_indexes = torch.multinomial(input=agent_probabilities, num_samples=number)
-        entry_probabilities = torch.ones(size=(self.__buffer_size,))
+        agent_indexes = torch.multinomial(input=agent_probabilities, num_samples=number, replacement=True)
+        entry_probabilities = torch.ones(size=(self.__entry_count,))
         invalid_entry_indexes = (torch.arange(
             start=self.__next_index,
             end=self.__next_index + required_history - 1,
-        ) % self.__buffer_size).unique()
+        ) % self.__entry_count).unique()
         entry_probabilities[invalid_entry_indexes] = 0
-        entry_indexes = torch.multinomial(input=entry_probabilities, num_samples=number)
+        entry_indexes = torch.multinomial(input=entry_probabilities, num_samples=number, replacement=True)
 
         full_range_observations = self.__history_index(tensor=self.__observations,
                                                        entry_indexes=entry_indexes,
