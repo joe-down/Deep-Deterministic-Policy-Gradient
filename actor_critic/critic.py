@@ -31,6 +31,7 @@ class Critic:
             n_head=n_head,
         ) for i in range(sub_critic_count)]
         self.__loss_function = torch.nn.HuberLoss()
+        self.__main_network_a = True
 
     @property
     def model_state_dicts(self) -> tuple[dict[str, typing.Any], ...]:
@@ -42,22 +43,22 @@ class Critic:
         assert least_reward_values.shape == q_rewards.shape[1:]
         return least_reward_values
 
-    def forward_model(
+    def forward_model_a(
             self,
             observation_actions: torch.Tensor,
             observation_actions_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
-        return self.__forward_model_base(q_rewards=torch.stack([sub_critic.forward_model(
+        return self.__forward_model_base(q_rewards=torch.stack([sub_critic.forward_model_a(
             observation_actions=observation_actions,
             observation_actions_sequence_length=observation_actions_sequence_length,
         ) for sub_critic in self.__sub_critics]))
 
-    def forward_target_model(
+    def forward_model_b(
             self,
             observation_actions: torch.Tensor,
             observation_actions_sequence_length: torch.Tensor,
     ) -> torch.Tensor:
-        return self.__forward_model_base(q_rewards=torch.stack([sub_critic.forward_target_model(
+        return self.__forward_model_base(q_rewards=torch.stack([sub_critic.forward_model_b(
             observation_actions=observation_actions,
             observation_actions_sequence_length=observation_actions_sequence_length,
         ) for sub_critic in self.__sub_critics]))
@@ -87,8 +88,6 @@ class Critic:
             immediate_rewards: torch.Tensor,
             terminations: torch.Tensor,
             discount_factor: float,
-            update_target_model: bool,
-            target_update_proportion: float,
     ) -> float:
         assert observations.ndim >= 2
         assert observations.shape[-2:] == (self.__history_size, self.__observation_length)
@@ -105,7 +104,6 @@ class Critic:
         assert immediate_rewards.shape == observations.shape[:-2]
         assert terminations.shape == observations.shape[:-2]
         assert 0 <= discount_factor <= 1
-        assert 0 <= target_update_proportion <= 1
         observation_actions = self.observation_actions(observations=observations, actions=actions)
         previous_observation_actions = self.observation_actions(
             observations=previous_observations,
@@ -135,7 +133,10 @@ class Critic:
                          == next_observations[..., -1:, :])
         assert torch.all(best_next_observation_actions[..., -1:, self.__observation_length:] == best_next_action)
 
-        worst_best_next_observation_actions_q = self.forward_target_model(
+        worst_best_next_observation_actions_q = self.forward_model_a(
+            observation_actions=best_next_observation_actions,
+            observation_actions_sequence_length=next_observations_sequence_length,
+        ) if not self.__main_network_a else self.forward_model_b(
             observation_actions=best_next_observation_actions,
             observation_actions_sequence_length=next_observations_sequence_length,
         )
@@ -178,8 +179,8 @@ class Critic:
              :,
              ].detach(),
             loss_function=self.__loss_function,
-            update_target_model=update_target_model,
-            target_update_proportion=target_update_proportion,
+            main_network_a=self.__main_network_a,
         ) for sub_critic_number, sub_critic in enumerate(self.__sub_critics)]).mean()
         assert loss.shape == ()
+        self.__main_network_a = not self.__main_network_a
         return loss.item()

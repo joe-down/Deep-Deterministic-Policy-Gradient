@@ -177,8 +177,6 @@ class TrainAgent:
             immediate_rewards=rewards,
             terminations=terminations,
             discount_factor=self.__discount_factor,
-            update_target_model=update_critic_target,
-            target_update_proportion=self.__target_update_proportion,
         ).__float__() if update_critic else None
         loss_2 = self.__actor.update(
             observations=observations,

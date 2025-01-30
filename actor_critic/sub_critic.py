@@ -38,7 +38,7 @@ class SubCritic(ActorCriticBase):
         assert q.shape == observation_actions.shape[:-2]
         return q
 
-    def forward_model(
+    def forward_model_a(
             self,
             observation_actions: torch.Tensor,
             observation_actions_sequence_length: torch.Tensor,
@@ -51,7 +51,7 @@ class SubCritic(ActorCriticBase):
             ),
         )
 
-    def forward_target_model(
+    def forward_model_b(
             self,
             observation_actions: torch.Tensor,
             observation_actions_sequence_length: torch.Tensor,
@@ -72,8 +72,7 @@ class SubCritic(ActorCriticBase):
             previous_observation_actions_sequence_length: torch.Tensor,
             q_targets: torch.Tensor,
             loss_function: torch.nn.Module,
-            update_target_model: bool,
-            target_update_proportion: float,
+            main_network_a: bool,
     ) -> float:
         assert observation_actions.ndim >= 2
         assert q_targets.shape == observation_actions.shape[:-2] + (self._output_features,)
@@ -88,6 +87,10 @@ class SubCritic(ActorCriticBase):
             src=observation_actions.detach(),
             tgt=previous_qs[..., 1:, :].detach(),
             src_sequence_length=observation_actions_sequence_length.detach(),
+        ) if main_network_a else self._forward_target_model(
+            src=observation_actions.detach(),
+            tgt=previous_qs[..., 1:, :].detach(),
+            src_sequence_length=observation_actions_sequence_length.detach(),
         )
         assert prediction.shape == observation_actions.shape[:-2] + (self._history_size, self._output_features)
         self.__optimiser.zero_grad()
@@ -95,6 +98,4 @@ class SubCritic(ActorCriticBase):
         assert loss.shape == ()
         loss.backward()
         self.__optimiser.step()
-        if update_target_model:
-            self._update_target_model(target_update_proportion=target_update_proportion)
         return loss.item()

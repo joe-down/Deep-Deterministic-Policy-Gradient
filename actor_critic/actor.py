@@ -96,7 +96,7 @@ class Actor(ActorCriticBase):
         assert (best_observation_actions.shape
                 == observations.shape[:-2] + (self._history_size, self._input_features + self._output_features,))
         self.__optimiser.zero_grad()
-        q_loss = (-critic.forward_model(
+        q_loss = (-critic.forward_model_a(
             observation_actions=best_observation_actions,
             observation_actions_sequence_length=observations_sequence_length.detach(),
         )).mean()
