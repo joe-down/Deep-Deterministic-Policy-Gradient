@@ -18,13 +18,13 @@ class Actor(ActorCriticBase):
         super().__init__(
             load_path=load_path / "action",
             model=torch.nn.Sequential(
-                torch.nn.Linear(in_features=observation_length * history_size, out_features=2**6),
+                torch.nn.Linear(in_features=observation_length * history_size, out_features=2 ** 6),
                 torch.nn.ReLU(),
                 torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
                 torch.nn.ReLU(),
                 torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
                 torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2**6, out_features=action_length),
+                torch.nn.Linear(in_features=2 ** 6, out_features=action_length),
                 torch.nn.Sigmoid(),
             ),
             input_features=observation_length,
@@ -59,12 +59,11 @@ class Actor(ActorCriticBase):
         assert torch.all(best_actions[..., -1:, :] == unprocessed_best_actions)
 
         self.__optimiser.zero_grad()
-        q_loss = (-critic.forward_model(observation=observations, action=best_actions)).mean()
-        assert q_loss.shape == ()
-        loss = q_loss
+        loss = (-critic.forward_model(observation=observations, action=best_actions)).mean()
         assert loss.shape == ()
         loss.backward()
         self.__optimiser.step()
+
         if update_target_network:
             self._update_target_model(target_update_proportion=target_model_update_proportion)
         return -loss
@@ -72,5 +71,5 @@ class Actor(ActorCriticBase):
     def _update_target_model(self, target_update_proportion: float) -> None:
         assert 0 <= target_update_proportion <= 1
         for parameter, target_parameter in zip(self._model_a_parameters, self._model_b_parameters):
-            target_parameter.data \
-                = ((1 - target_update_proportion) * target_parameter.data + target_update_proportion * parameter.data)
+            target_parameter.data = ((1 - target_update_proportion) * target_parameter.data
+                                     + target_update_proportion * parameter.data)
