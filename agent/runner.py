@@ -18,7 +18,6 @@ class Runner:
                  render_mode: str = None,
                  ) -> None:
         self.__env = gymnasium.make(environment, render_mode=render_mode)
-        self.__seed = seed
         self.__action_formatter = action_formatter
         self.__reward_function = reward_function
         self.__observation_length = observation_length
@@ -30,18 +29,15 @@ class Runner:
         self.__action_history: numpy.ndarray
         self.__reset_action_history()
         observation: numpy.ndarray
-        observation, info = self.__env.reset(seed=self.__seed)
+        observation, info = self.__env.reset(seed=seed)
         self.__update_observation_history(observation=observation)
 
     @property
-    def observation(self) -> numpy.ndarray:
-        assert self.__observation_history.shape == (self.__history_size, self.__observation_length)
-        return self.__observation_history
+    def observation(self) -> tuple[numpy.ndarray, int]:
+        return self.__observation_history, self.__observation_length
 
-    @property
-    def observation_sequence_length(self) -> int:
-        assert self.__observation_count > 0
-        return self.__observation_count
+    def close(self) -> None:
+        self.__env.close()
 
     @staticmethod
     def __next_history(
@@ -87,23 +83,20 @@ class Runner:
     def __reset_action_history(self) -> None:
         self.__action_history = numpy.random.random_sample(size=(self.__history_size - 1, self.__action_length))
 
-    def close(self) -> None:
-        self.__env.close()
-
     def step(self, action: numpy.ndarray) -> tuple[bool, float, float]:
         assert action.min() >= 0
         assert action.max() <= 1
-        self.__update_action_history(action=action)
         observation, reward, terminated, truncated, info = self.__env.step(self.__action_formatter(action))
         self.__update_observation_history(observation=observation)
+        self.__update_action_history(action=action)
         reward = reward.__float__()
         dead = terminated or truncated
         if dead:
-            observation, info = self.__env.reset()
+            reset_observation, reset_info = self.__env.reset()
             self.__reset_observation_history()
             self.__reset_action_history()
-            self.__update_observation_history(observation=observation)
-        return dead, reward, self.__reward_function(self.__observation_history[-1], reward, dead)
+            self.__update_observation_history(observation=reset_observation)
+        return dead, reward, self.__reward_function(observation, reward, dead)
 
     def run_full(self, actor: Actor) -> float:
         accumulated_reward = 0

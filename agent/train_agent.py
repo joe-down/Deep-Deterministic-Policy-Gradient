@@ -60,8 +60,6 @@ class TrainAgent:
             n_head=actor_n_head,
         )
         self.__runner_observation_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
-        self.__runner_observation_sequence_length_queues = [multiprocessing.Queue(maxsize=1)
-                                                            for _ in range(train_agent_count)]
         self.__runner_action_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
         self.__runner_dead_reward_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
         self.__runner_loops \
@@ -71,7 +69,6 @@ class TrainAgent:
                                            seed + runner_index,
                                            action_formatter,
                                            observation_queue,
-                                           observation_sequence_length_queue,
                                            action_queue,
                                            dead_reward_queue,
                                            reward_function,
@@ -79,10 +76,9 @@ class TrainAgent:
                                            action_length,
                                            history_size,
                                        ))
-               for runner_index, (observation_queue, observation_sequence_length_queue, action_queue, dead_reward_queue)
+               for runner_index, (observation_queue, action_queue, dead_reward_queue)
                in enumerate(zip(
                 self.__runner_observation_queues,
-                self.__runner_observation_sequence_length_queues,
                 self.__runner_action_queues,
                 self.__runner_dead_reward_queues,
             ))]
@@ -114,12 +110,15 @@ class TrainAgent:
         return self.__actor
 
     def step(self) -> None:
-        observations = torch.stack([torch.tensor(observation_queue.get())
-                                    for observation_queue in self.__runner_observation_queues])
-        observation_sequence_lengths = torch.tensor([observation_sequence_length_queue.get()
-                                                     for observation_sequence_length_queue
-                                                     in self.__runner_observation_sequence_length_queues])
-        assert observation_sequence_lengths.dtype == torch.long
+        observation_list = []
+        observation_sequence_length_list = []
+        for observation_queue in self.__runner_observation_queues:
+            observation, observation_sequence_length = observation_queue.get()
+            observation_list.append(observation)
+            observation_sequence_length_list.append(observation_sequence_length)
+        observations = torch.tensor(observation_list)
+        observation_sequence_lengths = torch.tensor(observation_sequence_length_list)
+
         actor_actions = self.__actor.forward_model(
             observations=observations,
             previous_actions=self.__buffer.last_actions(history_size=self.__history_size - 1),
@@ -129,14 +128,21 @@ class TrainAgent:
         actions = actor_actions * ~random_action_indexes + torch.rand_like(actor_actions) * random_action_indexes
         for action, runner_action_queue in zip(actions, self.__runner_action_queues):
             runner_action_queue.put(action.detach().cpu().numpy())
-        runner_steps = [dead_reward_queue.get() for dead_reward_queue in self.__runner_dead_reward_queues]
-        terminations = torch.tensor([dead for dead, reward in runner_steps])
-        rewards = torch.tensor([reward for dead, reward in runner_steps])
+
+        dead_list = []
+        reward_list = []
+        processed_reward_list = []
+        for step_result_queue in self.__runner_dead_reward_queues:
+            dead, reward, processed_reward = step_result_queue.get()
+            dead_list.append(dead)
+            reward_list.append(reward)
+            processed_reward_list.append(processed_reward)
+
         self.__buffer.push(
             observations=observations[..., -1, :],
             actions=actions,
-            rewards=rewards,
-            terminations=terminations,
+            rewards=torch.tensor(reward_list),
+            terminations=torch.tensor(dead_list),
             sequence_lengths=observation_sequence_lengths
         )
         self.__random_action_probabilities = torch.maximum(input=self.__random_action_probabilities
@@ -191,7 +197,6 @@ class TrainAgent:
             seed: int,
             action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
             observation_queue: multiprocessing.Queue,
-            observation_sequence_length_queue: multiprocessing.Queue,
             action_queue: multiprocessing.Queue,
             dead_reward_queue: multiprocessing.Queue,
             reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
@@ -211,8 +216,6 @@ class TrainAgent:
         try:
             while True:
                 observation_queue.put(runner.observation)
-                observation_sequence_length_queue.put(runner.observation_sequence_length)
-                dead, reward, processed_reward = runner.step(action=action_queue.get())
-                dead_reward_queue.put((dead, processed_reward))
+                dead_reward_queue.put(runner.step(action=action_queue.get()))
         except KeyboardInterrupt:
             runner.close()
