@@ -112,7 +112,7 @@ class TrainAgent:
             observation, observation_sequence_length = observation_queue.get()
             observation_list.append(observation)
             observation_sequence_length_list.append(observation_sequence_length)
-        observations = torch.tensor(observation_list)
+        observations = torch.tensor(observation_list, dtype=torch.float)
         observation_sequence_lengths = torch.tensor(observation_sequence_length_list)
 
         actor_actions = self.__actor.forward(observation=observations)
