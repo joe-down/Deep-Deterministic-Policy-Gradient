@@ -96,4 +96,4 @@ class SubCritic(ActorCriticBase):
         loss_b.backward()
         self.__optimiser_b.step()
 
-        return loss_a + loss_b
+        return loss_a
