@@ -80,30 +80,30 @@ class Actor(ActorCriticBase):
             critic: "Critic",
     ) -> float:
         unprocessed_best_actions = self._forward_model(
-            src=observations.detach(),
-            tgt=previous_actions.detach(),
-            src_sequence_length=observations_sequence_length.detach()
+            src=observations,
+            tgt=previous_actions,
+            src_sequence_length=observations_sequence_length
         )
         assert unprocessed_best_actions.shape == observations.shape[:-2] + (self._history_size, self._output_features,)
         best_actions = torch.concatenate(
-            tensors=(previous_actions.detach(), unprocessed_best_actions[..., -1:, :]),
+            tensors=(previous_actions, unprocessed_best_actions[..., -1:, :]),
             dim=-2,
         )
         assert best_actions.shape == unprocessed_best_actions.shape
         assert torch.all(best_actions[..., :-1, :] == previous_actions)
         assert torch.all(best_actions[..., -1:, :] == unprocessed_best_actions[..., -1:, :])
-        best_observation_actions = torch.concatenate((observations.detach(), best_actions), dim=-1)
+        best_observation_actions = torch.concatenate((observations, best_actions), dim=-1)
         assert (best_observation_actions.shape
                 == observations.shape[:-2] + (self._history_size, self._input_features + self._output_features,))
         self.__optimiser.zero_grad()
         q_loss = (-critic.forward_model(
             observation_actions=best_observation_actions,
-            observation_actions_sequence_length=observations_sequence_length.detach(),
+            observation_actions_sequence_length=observations_sequence_length,
         )).mean()
         assert q_loss.shape == ()
         history_loss = self.__history_loss_function.forward(
             input=unprocessed_best_actions[..., :-1, :],
-            target=previous_actions.detach(),
+            target=previous_actions,
         )
         assert history_loss.shape == ()
         loss = q_loss + history_loss
