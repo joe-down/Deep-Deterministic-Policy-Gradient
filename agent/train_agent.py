@@ -48,16 +48,12 @@ class TrainAgent:
             action_length=action_length,
             history_size=history_size,
             sub_critic_count=sub_critic_count,
-            embedding_dim=critic_embedding_dim,
-            n_head=critic_n_head,
         )
         self.__actor = Actor(
             load_path=save_path,
             observation_length=observation_length,
             action_length=action_length,
             history_size=history_size,
-            embedding_dim=actor_embedding_dim,
-            n_head=actor_n_head,
         )
         self.__runner_observation_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
         self.__runner_action_queues = [multiprocessing.Queue(maxsize=1) for _ in range(train_agent_count)]
@@ -99,7 +95,7 @@ class TrainAgent:
 
     @property
     def state_dicts(self) -> tuple[tuple[dict[str, typing.Any], ...], dict[str, typing.Any]]:
-        return self.__critic.model_state_dicts, self.__actor.model_state_dict
+        return self.__critic.model_state_dicts, self.__actor.model_a_state_dict
 
     @property
     def random_action_probabilities(self) -> numpy.ndarray:
@@ -119,11 +115,7 @@ class TrainAgent:
         observations = torch.tensor(observation_list)
         observation_sequence_lengths = torch.tensor(observation_sequence_length_list)
 
-        actor_actions = self.__actor.forward_model(
-            observations=observations,
-            previous_actions=self.__buffer.last_actions(history_size=self.__history_size - 1),
-            observations_sequence_length=observation_sequence_lengths,
-        )
+        actor_actions = self.__actor.forward(observation=observations)
         random_action_indexes = torch.rand_like(self.__random_action_probabilities) < self.__random_action_probabilities
         actions = actor_actions * ~random_action_indexes + torch.rand_like(actor_actions) * random_action_indexes
         for action, runner_action_queue in zip(actions, self.__runner_action_queues):
@@ -174,9 +166,7 @@ class TrainAgent:
             actor=self.__actor,
             observations=observations.detach(),
             actions=actions.detach(),
-            observations_sequence_length=sequence_lengths.detach(),
             next_observations=next_observations.detach(),
-            next_observations_sequence_length=next_sequence_lengths.detach(),
             immediate_rewards=rewards.detach(),
             terminations=terminations.detach(),
             discount_factor=self.__discount_factor,
@@ -184,7 +174,6 @@ class TrainAgent:
         loss_2 = self.__actor.update(
             observations=observations.detach(),
             previous_actions=actions[..., :-1, :].detach(),
-            observations_sequence_length=sequence_lengths.detach(),
             target_model_update_proportion=self.__target_update_proportion,
             update_target_network=update_actor_target,
             critic=self.__critic,

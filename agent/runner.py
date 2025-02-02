@@ -102,10 +102,8 @@ class Runner:
         accumulated_reward = 0
         dead = False
         while not dead:
-            dead, reward, processed_reward = self.step(action=actor.forward_model(
-                observations=torch.tensor(self.__observation_history).unsqueeze(dim=0),
-                previous_actions=torch.tensor(self.__action_history).unsqueeze(dim=0),
-                observations_sequence_length=torch.tensor([self.__observation_count]),
-            ).squeeze(dim=0).cpu().numpy())
+            dead, reward, processed_reward = self.step(action=actor.forward(
+                observation=torch.tensor(self.__observation_history),
+            ).cpu().numpy())
             accumulated_reward += reward
         return accumulated_reward
