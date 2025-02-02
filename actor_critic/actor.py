@@ -18,7 +18,13 @@ class Actor(ActorCriticBase):
         super().__init__(
             load_path=load_path / "action",
             model=torch.nn.Sequential(
-                torch.nn.Linear(in_features=observation_length * history_size, out_features=action_length),
+                torch.nn.Linear(in_features=observation_length * history_size, out_features=2**6),
+                torch.nn.ReLU(),
+                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
+                torch.nn.ReLU(),
+                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
+                torch.nn.ReLU(),
+                torch.nn.Linear(in_features=2**6, out_features=action_length),
                 torch.nn.Sigmoid(),
             ),
             input_features=observation_length,
@@ -26,7 +32,6 @@ class Actor(ActorCriticBase):
             history_size=history_size,
         )
         self.__optimiser = torch.optim.AdamW(params=self._model_a_parameters)
-        self.__history_loss_function = torch.nn.HuberLoss()
 
     def forward(self, observation: torch.Tensor) -> torch.Tensor:
         assert observation.ndim >= 2
