@@ -62,7 +62,7 @@ class SubCritic(ActorCriticBase):
             loss_function: torch.nn.Module,
             actor: Actor,
     ) -> float:
-        no_history_next_action = actor.forward(observation=next_observation).unsqueeze(dim=-2)  # TODO
+        no_history_next_action = actor.forward_target(observation=next_observation).unsqueeze(dim=-2)  # TODO
         assert no_history_next_action.shape == action.shape[:-2] + (1,) + action.shape[-1:]
         next_action = torch.concatenate(tensors=(action[..., 1:, :], no_history_next_action), dim=-2)
         assert next_action.shape == action.shape

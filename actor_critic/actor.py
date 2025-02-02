@@ -40,6 +40,13 @@ class Actor(ActorCriticBase):
         assert result.shape == observation.shape[:-2] + (self._output_features,)
         return result
 
+    def forward_target(self, observation: torch.Tensor) -> torch.Tensor:
+        assert observation.ndim >= 2
+        assert observation.shape[-2:] == (self._history_size, self._input_features)
+        result = self._forward_model_b(observation.flatten(-2, -1))  # TODO
+        assert result.shape == observation.shape[:-2] + (self._output_features,)
+        return result
+
     def update(
             self,
             observations: torch.Tensor,
