@@ -95,7 +95,7 @@ class TrainAgent:
 
     @property
     def state_dicts(self) -> tuple[tuple[dict[str, typing.Any], ...], dict[str, typing.Any]]:
-        return self.__critic.model_state_dicts, self.__actor.model_a_state_dict
+        return self.__critic.model_state_dicts, self.__actor.model_state_dict
 
     @property
     def random_action_probabilities(self) -> numpy.ndarray:
