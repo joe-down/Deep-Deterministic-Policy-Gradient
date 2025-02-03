@@ -37,6 +37,14 @@ class Critic:
         assert least_reward_values.shape == observation.shape[:-2]
         return least_reward_values
 
+    def forward_target_model(self, observation: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        q_rewards = torch.stack([sub_critic.forward_target(observation=observation, action=action).mean(dim=-1)  # TODO
+                                 for sub_critic in self.__sub_critics])
+        assert q_rewards.shape == (self.__sub_critic_count,) + observation.shape[:-2]
+        least_reward_values, _ = q_rewards.min(dim=0)
+        assert least_reward_values.shape == observation.shape[:-2]
+        return least_reward_values
+
     def update(
             self,
             actor: "Actor",
@@ -46,6 +54,8 @@ class Critic:
             immediate_rewards: torch.Tensor,
             terminations: torch.Tensor,
             discount_factor: float,
+            update_target_network:bool,
+            target_model_update_proportion:float
     ) -> float:
         loss = torch.tensor(data=[sub_critic.update(
             observation=observations.detach(),
@@ -56,6 +66,8 @@ class Critic:
             discount_factor=discount_factor,
             loss_function=self.__loss_function,
             actor=actor,
+            update_target_network=update_target_network,
+            target_model_update_proportion=target_model_update_proportion,
         ) for sub_critic in self.__sub_critics]).mean()
         assert loss.shape == ()
         return loss.item()

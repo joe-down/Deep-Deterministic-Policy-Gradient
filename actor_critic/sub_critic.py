@@ -20,48 +20,23 @@ class SubCritic(ActorCriticBase):
         super().__init__(
             load_path=load_path,
             model=torch.nn.Sequential(
-                torch.nn.Linear(in_features=(observation_length + action_length) * history_size, out_features=2**6),
+                torch.nn.Linear(in_features=(observation_length + action_length) * history_size, out_features=2 ** 8),
                 torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2**6, out_features=2**6),
+                torch.nn.Linear(in_features=2 ** 8, out_features=2 ** 8),
                 torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2**6, out_features=2**6),
+                torch.nn.Linear(in_features=2 ** 8, out_features=2 ** 8),
                 torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
+                torch.nn.Linear(in_features=2 ** 8, out_features=2 ** 8),
                 torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
+                torch.nn.Linear(in_features=2 ** 8, out_features=2 ** 8),
                 torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2 ** 6, out_features=2 ** 6),
-                torch.nn.ReLU(),
-                torch.nn.Linear(in_features=2**6, out_features=1),
+                torch.nn.Linear(in_features=2 ** 8, out_features=1),
             ),
             input_features=observation_length + action_length,
             output_features=1,
             history_size=history_size,
         )
-        self.__optimiser_a = torch.optim.AdamW(params=self._model_a_parameters)
-        self.__optimiser_b = torch.optim.AdamW(params=self._model_b_parameters)
+        self.__optimiser = torch.optim.AdamW(params=self._model_parameters)
 
     def __observation_action(self, observation: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         assert observation.ndim >= 2
@@ -75,7 +50,13 @@ class SubCritic(ActorCriticBase):
 
     def forward(self, observation: torch.Tensor, action: torch.Tensor):
         observation_action = self.__observation_action(observation=observation, action=action)
-        result = self._forward_model_a(observation_action.flatten(-2, -1))  # TODO
+        result = self._forward_model(observation_action.flatten(-2, -1))  # TODO
+        assert result.shape == observation.shape[:-2] + (self._output_features,)
+        return result
+
+    def forward_target(self, observation: torch.Tensor, action: torch.Tensor):
+        observation_action = self.__observation_action(observation=observation, action=action)
+        result = self._forward_target_model(observation_action.flatten(-2, -1))  # TODO
         assert result.shape == observation.shape[:-2] + (self._output_features,)
         return result
 
@@ -89,6 +70,8 @@ class SubCritic(ActorCriticBase):
             discount_factor: float,
             loss_function: torch.nn.Module,
             actor: Actor,
+            update_target_network: bool,
+            target_model_update_proportion: float,
     ) -> float:
         no_history_next_action = actor.forward_target(observation=next_observation).unsqueeze(dim=-2)  # TODO
         assert no_history_next_action.shape == action.shape[:-2] + (1,) + action.shape[-1:]
@@ -96,32 +79,20 @@ class SubCritic(ActorCriticBase):
         assert next_action.shape == action.shape
         assert torch.all(next_action[..., :-1, :] == action[..., 1:, :])
         assert torch.all(next_action[..., -1:, :] == no_history_next_action)
-        next_observation_action = self.__observation_action(observation=next_observation, action=next_action)
 
-        next_qs_a = self._forward_model_a(next_observation_action.flatten(-2, -1).detach()).unsqueeze(-1)  # TODO
-        assert next_qs_a.shape == next_observation_action.shape[:-2] + (self._output_features, 1)
-        next_qs_b = self._forward_model_b(next_observation_action.flatten(-2, -1).detach()).unsqueeze(-1)  # TODO
-        assert next_qs_b.shape == next_observation_action.shape[:-2] + (self._output_features, 1)
-        next_qs, minimum_q_indices = torch.concatenate((next_qs_a, next_qs_b), dim=-1).min(dim=-1)
-        assert next_qs.shape == next_observation_action.shape[:-2] + (self._output_features,)
+        next_qs = self.forward_target(observation=next_observation, action=next_action).unsqueeze(-1)  # TODO
+        assert next_qs.shape ==next_observation.shape[:-2] + (self._output_features, 1)
         q_targets = immediate_reward + discount_factor * (1 - termination) * next_qs
 
-        observation_action = self.__observation_action(observation=observation, action=action).flatten(-2, -1)  # TODO
-        prediction_a = self._forward_model_a(observation_action.detach())
-        assert prediction_a.shape == observation.shape[:-2] + (self._output_features,)
-        prediction_b = self._forward_model_b(observation_action.detach())
-        assert prediction_b.shape == prediction_a.shape
+        prediction = self.forward(observation=observation, action=action)
+        assert prediction.shape == observation.shape[:-2] + (self._output_features,)
 
-        self.__optimiser_a.zero_grad()
-        loss_a = loss_function.forward(input=prediction_a, target=q_targets.detach())
-        assert loss_a.shape == ()
-        loss_a.backward()
-        self.__optimiser_a.step()
+        self.__optimiser.zero_grad()
+        loss = loss_function.forward(input=prediction, target=q_targets.detach())
+        assert loss.shape == ()
+        loss.backward()
+        self.__optimiser.step()
+        if update_target_network:
+            self._update_target_model(target_update_proportion=target_model_update_proportion)
 
-        self.__optimiser_b.zero_grad()
-        loss_b = loss_function.forward(input=prediction_b, target=q_targets.detach())
-        assert loss_b.shape == ()
-        loss_b.backward()
-        self.__optimiser_b.step()
-
-        return loss_a
+        return loss
