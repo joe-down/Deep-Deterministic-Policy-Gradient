@@ -149,8 +149,9 @@ class TrainAgent:
         if not self.__buffer.ready(history_size=self.__history_size):
             return 0, 0
         update_actor = iteration % 1 == 0  # TODO change this
-        update_critic = iteration % 1 == 0  # TODO change this
-        update_actor_target = iteration % 1 == 0  # TODO change this
+        update_critic = iteration % 2 == 0  # TODO change this
+        update_actor_target = iteration % 4 == 0  # TODO change this
+        update_critic_target = iteration % 4 == 0  # TODO change this
         (observations,
          actions,
          rewards,
@@ -170,6 +171,8 @@ class TrainAgent:
             immediate_rewards=rewards.detach(),
             terminations=terminations.detach(),
             discount_factor=self.__discount_factor,
+            target_model_update_proportion=self.__target_update_proportion,
+            update_target_network=update_critic_target
         ).__float__() if update_critic else None
         loss_2 = self.__actor.update(
             observations=observations.detach(),
