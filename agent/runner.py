@@ -75,13 +75,13 @@ class Runner:
     def __update_action_history(self, action: numpy.ndarray) -> None:
         self.__action_history = self.__next_history(
             expected_item_length=self.__action_length,
-            history_size=self.__history_size - 1,
+            history_size=self.__history_size,
             current_history=self.__action_history,
             next_item=action,
         )
 
     def __reset_action_history(self) -> None:
-        self.__action_history = numpy.random.random_sample(size=(self.__history_size - 1, self.__action_length))
+        self.__action_history = numpy.random.random_sample(size=(self.__history_size, self.__action_length))
 
     def step(self, action: numpy.ndarray) -> tuple[bool, float, float]:
         assert action.min() >= 0
