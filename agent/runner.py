@@ -33,7 +33,7 @@ class Runner:
 
     @property
     def observation(self) -> tuple[numpy.ndarray, int]:
-        return self.__observation_history, self.__observation_length
+        return self.__observation_history, self.__observation_count
 
     def close(self) -> None:
         self.__env.close()
