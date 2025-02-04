@@ -27,7 +27,7 @@ class Critic:
 
     @property
     def model_state_dicts(self) -> tuple[dict[str, typing.Any], ...]:
-        return tuple(sub_critic.model_a_state_dict for sub_critic in self.__sub_critics)
+        return tuple(sub_critic.model_state_dict for sub_critic in self.__sub_critics)
 
     def forward_model(self, observation: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         q_rewards = torch.stack([sub_critic.forward(observation=observation, action=action).mean(dim=-1)  # TODO
