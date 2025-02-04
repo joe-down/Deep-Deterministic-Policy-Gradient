@@ -23,11 +23,10 @@ class Runner:
         self.__observation_length = observation_length
         self.__action_length = action_length
         self.__history_size = history_size
-        self.__observation_history: numpy.ndarray
-        self.__reset_observation_history()
+
+        self.__observation_history = numpy.zeros(shape=(self.__history_size, self.__observation_length))
         self.__observation_count = 0
-        self.__action_history: numpy.ndarray
-        self.__reset_action_history()
+        self.__action_history = numpy.zeros(shape=(self.__history_size, self.__action_length))
         observation: numpy.ndarray
         observation, info = self.__env.reset(seed=seed)
         self.__update_observation_history(observation=observation)
@@ -68,10 +67,6 @@ class Runner:
         )
         self.__observation_count += 1
 
-    def __reset_observation_history(self) -> None:
-        self.__observation_history = numpy.random.random_sample(size=(self.__history_size, self.__observation_length))
-        self.__observation_count = 0
-
     def __update_action_history(self, action: numpy.ndarray) -> None:
         self.__action_history = self.__next_history(
             expected_item_length=self.__action_length,
@@ -80,22 +75,17 @@ class Runner:
             next_item=action,
         )
 
-    def __reset_action_history(self) -> None:
-        self.__action_history = numpy.random.random_sample(size=(self.__history_size, self.__action_length))
-
     def step(self, action: numpy.ndarray) -> tuple[bool, float, float]:
         assert action.min() >= 0
         assert action.max() <= 1
-        observation, reward, terminated, truncated, info = self.__env.step(self.__action_formatter(action))
-        self.__update_observation_history(observation=observation)
         self.__update_action_history(action=action)
+        observation, reward, terminated, truncated, info = self.__env.step(self.__action_formatter(action))
         reward = reward.__float__()
         dead = terminated or truncated
         if dead:
-            reset_observation, reset_info = self.__env.reset()
-            self.__reset_observation_history()
-            self.__reset_action_history()
-            self.__update_observation_history(observation=reset_observation)
+            observation, info = self.__env.reset()
+            self.__observation_count = 0
+        self.__update_observation_history(observation=observation)
         return dead, reward, self.__reward_function(observation, reward, dead)
 
     def run_full(self, actor: Actor) -> float:
