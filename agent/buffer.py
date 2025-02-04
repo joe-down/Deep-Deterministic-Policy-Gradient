@@ -81,16 +81,18 @@ class Buffer:
         assert number > 0
         assert self.ready(history_size=history_size)
         required_history = history_size + 2
+        number = min(number, self.__train_agent_count * self.__entry_count)
 
-        agent_probabilities = torch.ones(size=(self.__train_agent_count,))
-        agent_indexes = torch.multinomial(input=agent_probabilities, num_samples=number, replacement=True)
-        entry_probabilities = torch.ones(size=(self.__entry_count,))
+        valid_indexes = torch.ones(size=(self.__train_agent_count * self.__entry_count,))
         invalid_entry_indexes = (torch.arange(
             start=self.__next_index,
             end=self.__next_index + required_history - 1,
         ) % self.__entry_count).unique()
-        entry_probabilities[invalid_entry_indexes] = 0
-        entry_indexes = torch.multinomial(input=entry_probabilities, num_samples=number, replacement=True)
+        for train_agent_start_index in range(self.__train_agent_count):
+            valid_indexes[invalid_entry_indexes + train_agent_start_index * self.__entry_count] = 0
+        random_indexes = torch.multinomial(input=valid_indexes, num_samples=number)
+        agent_indexes = random_indexes % self.__train_agent_count
+        entry_indexes = random_indexes % self.__entry_count
 
         full_range_observations = self.__history_index(tensor=self.__observations,
                                                        entry_indexes=entry_indexes,
