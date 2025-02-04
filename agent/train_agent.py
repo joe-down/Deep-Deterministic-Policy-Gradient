@@ -30,10 +30,6 @@ class TrainAgent:
                  action_formatter: typing.Callable[[numpy.ndarray], numpy.ndarray],
                  reward_function: typing.Callable[[numpy.ndarray, float, bool], float],
                  sub_critic_count: int,
-                 actor_embedding_dim: int,
-                 actor_n_head: int,
-                 critic_embedding_dim: int,
-                 critic_n_head: int
                  ) -> None:
         self.__action_length = action_length
         self.__discount_factor = discount_factor
